@@ -1,4 +1,5 @@
 const permissionService = require('../services/permissionService');
+const { sequelize } = require('../models');
 const { successResponse } = require('../utils/response');
 
 /**
@@ -32,11 +33,14 @@ const getRolePermissions = async (req, res, next) => {
  * PUT /api/roles/:roleId/permissions
  */
 const updateRolePermissions = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const { permission_ids } = req.body;
-    const permissions = await permissionService.updateRolePermissions(req.params.roleId, permission_ids);
+    const permissions = await permissionService.updateRolePermissions(req.params.roleId, permission_ids, transaction);
+    await transaction.commit();
     return successResponse(res, 'Role permissions updated successfully', permissions, 200);
   } catch (error) {
+    await transaction.rollback();
     return next(error);
   }
 };
@@ -59,11 +63,14 @@ const getStaffPermissions = async (req, res, next) => {
  * PUT /api/staff/:staffId/permissions
  */
 const updateStaffPermissions = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const { permission_ids } = req.body;
-    const permissions = await permissionService.updateStaffPermissions(req.params.staffId, permission_ids);
+    const permissions = await permissionService.updateStaffPermissions(req.params.staffId, permission_ids, transaction);
+    await transaction.commit();
     return successResponse(res, 'Staff specific permissions updated successfully', permissions, 200);
   } catch (error) {
+    await transaction.rollback();
     return next(error);
   }
 };

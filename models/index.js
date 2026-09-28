@@ -4,6 +4,9 @@ const Screen = require('./Screen');
 const Staff = require('./Staff');
 const Permission = require('./Permission');
 const RolePermission = require('./RolePermission');
+const Product = require('./Product');
+const Cart = require('./Cart');
+const CartItem = require('./CartItem');
 
 // Associations
 
@@ -46,11 +49,50 @@ Permission.belongsToMany(Role, {
   as: 'roles'
 });
 
+// 4. Cart & Staff
+Staff.hasMany(Cart, {
+  foreignKey: 'staff_id',
+  as: 'carts',
+  onDelete: 'CASCADE'
+});
+
+Cart.belongsTo(Staff, {
+  foreignKey: 'staff_id',
+  as: 'staff'
+});
+
+// 5. Cart & CartItem
+Cart.hasMany(CartItem, {
+  foreignKey: 'cart_id',
+  as: 'items',
+  onDelete: 'CASCADE'
+});
+
+CartItem.belongsTo(Cart, {
+  foreignKey: 'cart_id',
+  as: 'cart'
+});
+
+// 6. CartItem & Product
+CartItem.belongsTo(Product, {
+  foreignKey: 'product_id',
+  as: 'product',
+  onDelete: 'CASCADE'
+});
+
+Product.hasMany(CartItem, {
+  foreignKey: 'product_id',
+  as: 'cart_items'
+});
+
 module.exports = {
   sequelize,
   Role,
   Screen,
   Staff,
   Permission,
-  RolePermission
+  RolePermission,
+  Product,
+  Cart,
+  CartItem
 };

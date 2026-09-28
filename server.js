@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { testConnection } = require('./config/database');
-const authRoutes = require('./routes/authRoutes');
+const apiRoutes = require('./routes');
 const errorMiddleware = require('./middlewares/errorMiddleware');
 const { successResponse, errorResponse } = require('./utils/response');
 
@@ -24,8 +24,8 @@ app.get('/', (req, res) => {
   });
 });
 
-// Authentication Routes
-app.use('/api/auth', authRoutes);
+// API Routes
+app.use('/api', apiRoutes);
 
 // 404 Not Found Handler for unmatched routes
 app.use((req, res, next) => {

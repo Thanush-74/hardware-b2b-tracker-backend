@@ -43,7 +43,7 @@ const getRolePermissions = async (roleId) => {
 /**
  * Update/assign permissions to a role (Admin only)
  */
-const updateRolePermissions = async (roleId, permissionIds) => {
+const updateRolePermissions = async (roleId, permissionIds, transaction) => {
   if (!Array.isArray(permissionIds)) {
     const error = new Error('permission_ids must be an array of permission IDs');
     error.statusCode = 400;
@@ -70,30 +70,24 @@ const updateRolePermissions = async (roleId, permissionIds) => {
     }
   }
 
-  const transaction = await sequelize.transaction();
-  try {
-    // Remove existing role permissions
-    await RolePermission.destroy({
-      where: { role_id: roleId },
-      transaction
+  // Remove existing role permissions
+  await RolePermission.destroy({
+    where: { role_id: roleId },
+    ...(transaction && { transaction })
+  });
+
+  // Add new role permissions
+  if (permissionIds.length > 0) {
+    const rolePermRecords = permissionIds.map(permId => ({
+      role_id: roleId,
+      permission_id: permId
+    }));
+    await RolePermission.bulkCreate(rolePermRecords, {
+      ...(transaction && { transaction })
     });
-
-    // Add new role permissions
-    if (permissionIds.length > 0) {
-      const rolePermRecords = permissionIds.map(permId => ({
-        role_id: roleId,
-        permission_id: permId
-      }));
-      await RolePermission.bulkCreate(rolePermRecords, { transaction });
-    }
-
-    await transaction.commit();
-
-    return await getRolePermissions(roleId);
-  } catch (err) {
-    await transaction.rollback();
-    throw err;
   }
+
+  return await getRolePermissions(roleId);
 };
 
 /**
@@ -139,7 +133,7 @@ const getStaffPermissions = async (staffId) => {
 /**
  * Update/assign staff-specific direct permissions (Admin only)
  */
-const updateStaffPermissions = async (staffId, permissionIds) => {
+const updateStaffPermissions = async (staffId, permissionIds, transaction) => {
   if (!Array.isArray(permissionIds)) {
     const error = new Error('permission_ids must be an array of permission IDs');
     error.statusCode = 400;
@@ -166,12 +160,11 @@ const updateStaffPermissions = async (staffId, permissionIds) => {
     }
   }
 
-  const transaction = await sequelize.transaction();
-  try {
+  if (StaffPermission) {
     // Remove existing direct staff permissions
     await StaffPermission.destroy({
       where: { staff_id: staffId },
-      transaction
+      ...(transaction && { transaction })
     });
 
     // Add new direct staff permissions
@@ -180,16 +173,13 @@ const updateStaffPermissions = async (staffId, permissionIds) => {
         staff_id: staffId,
         permission_id: permId
       }));
-      await StaffPermission.bulkCreate(staffPermRecords, { transaction });
+      await StaffPermission.bulkCreate(staffPermRecords, {
+        ...(transaction && { transaction })
+      });
     }
-
-    await transaction.commit();
-
-    return await getStaffPermissions(staffId);
-  } catch (err) {
-    await transaction.rollback();
-    throw err;
   }
+
+  return await getStaffPermissions(staffId);
 };
 
 module.exports = {
