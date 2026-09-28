@@ -4,9 +4,14 @@
   "description": "��#\u0000 \u0000h\u0000a\u0000r\u0000d\u0000w\u0000a\u0000r\u0000e\u0000-\u0000b\u00002\u0000b\u0000-\u0000t\u0000r\u0000a\u0000c\u0000k\u0000e\u0000r\u0000\r\u0000 \u0000",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node scripts/test-backend.js",
+    "test:api": "node scripts/test-backend.js",
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "migrate": "node scripts/migrate.js up",
+    "migrate:undo": "node scripts/migrate.js down",
+    "seed": "node scripts/seed.js up",
+    "seed:undo": "node scripts/seed.js down"
   },
   "repository": {
     "type": "git",
