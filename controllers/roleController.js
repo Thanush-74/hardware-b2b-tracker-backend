@@ -27,7 +27,30 @@ const getRoleById = async (req, res, next) => {
   }
 };
 
+/**
+ * Create a new role with permissions/screens (Admin only)
+ * POST /api/roles
+ */
+const createRole = async (req, res, next) => {
+  try {
+    const { name, slug, description, screens, screen_ids, permissions, permission_ids } = req.body;
+    const role = await roleService.createRole({
+      name,
+      slug,
+      description,
+      screens,
+      screen_ids,
+      permissions,
+      permission_ids
+    });
+    return successResponse(res, 'Role created successfully', role, 201);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getAllRoles,
-  getRoleById
+  getRoleById,
+  createRole
 };

@@ -1,4 +1,4 @@
-const { Permission, Screen, Role, Staff, RolePermission, StaffPermission, sequelize } = require('../models');
+const { Permission, Screen, Role, Staff, RolePermission, sequelize } = require('../models');
 
 /**
  * Get all permissions grouped by or with screen details
@@ -80,7 +80,8 @@ const updateRolePermissions = async (roleId, permissionIds, transaction) => {
   if (permissionIds.length > 0) {
     const rolePermRecords = permissionIds.map(permId => ({
       role_id: roleId,
-      permission_id: permId
+      permission_id: permId,
+      assigned_at: new Date()
     }));
     await RolePermission.bulkCreate(rolePermRecords, {
       ...(transaction && { transaction })
@@ -91,17 +92,11 @@ const updateRolePermissions = async (roleId, permissionIds, transaction) => {
 };
 
 /**
- * Get staff-specific direct permissions
+ * Get permissions for a staff member based on their assigned role
  */
 const getStaffPermissions = async (staffId) => {
   const staff = await Staff.findByPk(staffId, {
     include: [
-      {
-        model: Permission,
-        as: 'direct_permissions',
-        include: [{ model: Screen, as: 'screen' }],
-        through: { attributes: [] }
-      },
       {
         model: Role,
         as: 'role',
@@ -124,62 +119,23 @@ const getStaffPermissions = async (staffId) => {
   }
 
   return {
-    staff_id: staff.id,
-    direct_permissions: staff.direct_permissions,
-    role_permissions: staff.role ? staff.role.permissions : []
+    staff_id: Number(staff.id),
+    role: staff.role ? {
+      id: Number(staff.role.id),
+      name: staff.role.name,
+      slug: staff.role.slug
+    } : null,
+    role_permissions: staff.role && Array.isArray(staff.role.permissions) ? staff.role.permissions : []
   };
 };
 
 /**
- * Update/assign staff-specific direct permissions (Admin only)
+ * Notice for staff permissions update (permissions are strictly role-based)
  */
 const updateStaffPermissions = async (staffId, permissionIds, transaction) => {
-  if (!Array.isArray(permissionIds)) {
-    const error = new Error('permission_ids must be an array of permission IDs');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const staff = await Staff.findByPk(staffId);
-  if (!staff) {
-    const error = new Error('Staff member not found');
-    error.statusCode = 404;
-    throw error;
-  }
-
-  // Validate that all permission IDs exist
-  if (permissionIds.length > 0) {
-    const existingPermissions = await Permission.findAll({
-      where: { id: permissionIds }
-    });
-
-    if (existingPermissions.length !== permissionIds.length) {
-      const error = new Error('One or more permission IDs are invalid');
-      error.statusCode = 400;
-      throw error;
-    }
-  }
-
-  if (StaffPermission) {
-    // Remove existing direct staff permissions
-    await StaffPermission.destroy({
-      where: { staff_id: staffId },
-      ...(transaction && { transaction })
-    });
-
-    // Add new direct staff permissions
-    if (permissionIds.length > 0) {
-      const staffPermRecords = permissionIds.map(permId => ({
-        staff_id: staffId,
-        permission_id: permId
-      }));
-      await StaffPermission.bulkCreate(staffPermRecords, {
-        ...(transaction && { transaction })
-      });
-    }
-  }
-
-  return await getStaffPermissions(staffId);
+  const error = new Error('Direct staff permissions are not supported. Permissions are role-based. Please update the role permissions or change the staff member\'s role.');
+  error.statusCode = 400;
+  throw error;
 };
 
 module.exports = {

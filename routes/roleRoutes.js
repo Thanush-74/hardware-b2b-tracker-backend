@@ -11,6 +11,9 @@ router.use(authMiddleware);
 // Get all roles
 router.get('/', roleController.getAllRoles);
 
+// Create a new role (Admin only)
+router.post('/', requireAdmin, roleController.createRole);
+
 // Role permissions
 router.get('/:roleId/permissions', permissionController.getRolePermissions);
 router.put('/:roleId/permissions', requireAdmin, permissionController.updateRolePermissions);

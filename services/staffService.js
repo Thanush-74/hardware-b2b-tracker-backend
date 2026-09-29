@@ -135,12 +135,6 @@ const getStaffById = async (id) => {
             through: { attributes: [] }
           }
         ]
-      },
-      {
-        model: Permission,
-        as: 'direct_permissions',
-        attributes: ['id', 'name', 'slug'],
-        through: { attributes: [] }
       }
     ]
   });
