@@ -1,4 +1,4 @@
-const { Product } = require('../models');
+const { Product, Inventory } = require('../models');
 const { Op } = require('sequelize');
 
 /**
@@ -47,6 +47,14 @@ const createProduct = async ({ name, type, specifications, price, available_quan
     available_quantity: numericQuantity,
     description: description ? description.trim() : null,
     is_active: is_active !== undefined ? Boolean(is_active) : true
+  });
+
+  // 3. Create corresponding inventory record
+  await Inventory.create({
+    product_id: product.id,
+    quantity: numericQuantity,
+    reserved_quantity: 0,
+    location: 'Main Warehouse'
   });
 
   return product;
