@@ -22,7 +22,8 @@
     "migrate": "node scripts/migrate.js up",
     "migrate:undo": "node scripts/migrate.js down",
     "seed": "node scripts/seed.js up",
-    "seed:undo": "node scripts/seed.js down"
+    "seed:undo": "node scripts/seed.js down",
+    "seed:admin": "node scripts/seed-admin.js"
   },
   "repository": {
     "type": "git",
