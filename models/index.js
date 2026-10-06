@@ -16,6 +16,7 @@ const Return = require('./Return');
 const ManufacturingAssignment = require('./ManufacturingAssignment');
 const Expense = require('./Expense');
 const Inspection = require('./Inspection');
+const Notification = require('./Notification');
 
 // Associations
 
@@ -290,6 +291,18 @@ Inspection.belongsTo(Production, {
   as: 'production'
 });
 
+// 22. Staff & Notification (One-to-Many)
+Staff.hasMany(Notification, {
+  foreignKey: 'recipient_staff_id',
+  as: 'notifications',
+  onDelete: 'CASCADE'
+});
+
+Notification.belongsTo(Staff, {
+  foreignKey: 'recipient_staff_id',
+  as: 'recipient'
+});
+
 module.exports = {
   sequelize,
   Role,
@@ -308,5 +321,6 @@ module.exports = {
   Return,
   ManufacturingAssignment,
   Expense,
-  Inspection
+  Inspection,
+  Notification
 };

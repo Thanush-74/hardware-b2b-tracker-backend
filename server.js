@@ -37,11 +37,16 @@ app.use(errorMiddleware);
 
 // Start server
 const startServer = async () => {
-  await testConnection();
-  app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-    console.log(`Login endpoint: http://localhost:${PORT}/api/auth/login`);
-  });
+  try {
+    await testConnection();
+    app.listen(PORT, () => {
+      console.log(`Server is running on http://localhost:${PORT}`);
+      console.log(`Login endpoint: http://localhost:${PORT}/api/auth/login`);
+    });
+  } catch (error) {
+    console.error('Server failed to start due to database connection error.');
+    process.exit(1);
+  }
 };
 
 if (process.env.NODE_ENV !== 'test') {

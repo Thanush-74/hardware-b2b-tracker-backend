@@ -1,5 +1,6 @@
 const { Inventory, Product } = require('../models');
 const { Op } = require('sequelize');
+const notificationService = require('./notificationService');
 
 /**
  * Determine stock status label based on available quantity
@@ -243,6 +244,19 @@ const decreaseStock = async (id, amount) => {
   const availableQty = newTotal - item.reserved_quantity;
   if (item.product) {
     await item.product.update({ available_quantity: availableQty });
+  }
+
+  // Trigger Low Stock Notification if available stock <= 10
+  if (availableQty <= 10) {
+    try {
+      await notificationService.notifyAdmins({
+        title: 'Low Stock Alert',
+        message: `Product "${item.product?.name || 'Inventory Item'}" is low on stock (${availableQty} units remaining).`,
+        type: 'low_stock'
+      });
+    } catch (notifyErr) {
+      console.error('Inventory notification warning:', notifyErr.message);
+    }
   }
 
   await item.reload();

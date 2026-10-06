@@ -16,6 +16,8 @@ const returnRoutes = require('./returnRoutes');
 const manufacturingRoutes = require('./manufacturingRoutes');
 const expenseRoutes = require('./expenseRoutes');
 const inspectionRoutes = require('./inspectionRoutes');
+const searchRoutes = require('./searchRoutes');
+const notificationRoutes = require('./notificationRoutes');
 
 // Mount sub-routes
 router.use('/auth', authRoutes);
@@ -33,5 +35,7 @@ router.use('/returns', returnRoutes);
 router.use('/manufacturing', manufacturingRoutes);
 router.use('/expenses', expenseRoutes);
 router.use('/inspections', inspectionRoutes);
+router.use('/search', searchRoutes);
+router.use('/notifications', notificationRoutes);
 
 module.exports = router;

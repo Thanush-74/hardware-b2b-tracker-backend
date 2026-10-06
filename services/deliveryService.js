@@ -1,5 +1,6 @@
 const { Delivery, Order, OrderItem, Product, Staff } = require('../models');
 const { Op } = require('sequelize');
+const notificationService = require('./notificationService');
 
 const ALLOWED_DELIVERY_STATUSES = ['Pending', 'Preparing', 'In Transit', 'Delivered', 'Failed', 'Cancelled'];
 
@@ -279,6 +280,24 @@ const updateDeliveryStatus = async (id, status) => {
 
   await delivery.update(updateFields);
 
+  try {
+    if (delivery.delivery_staff_id) {
+      await notificationService.createNotification({
+        recipient_staff_id: delivery.delivery_staff_id,
+        title: 'Delivery Status Updated',
+        message: `Delivery #${delivery.tracking_number} status updated to "${status}".`,
+        type: 'delivery_status'
+      });
+    }
+    await notificationService.notifyAdmins({
+      title: 'Delivery Status Updated',
+      message: `Delivery #${delivery.tracking_number} for Order #${delivery.order_id} is now "${status}".`,
+      type: 'delivery_status'
+    });
+  } catch (notifyErr) {
+    console.error('Delivery notification warning:', notifyErr.message);
+  }
+
   return await getDeliveryById(delivery.id);
 };
 
@@ -312,6 +331,19 @@ const assignDeliveryStaff = async (id, delivery_staff_id) => {
   }
 
   await delivery.update(updateFields);
+
+  try {
+    if (delivery_staff_id) {
+      await notificationService.createNotification({
+        recipient_staff_id: delivery_staff_id,
+        title: 'New Delivery Assigned',
+        message: `You have been assigned to delivery #${delivery.tracking_number}.`,
+        type: 'delivery_status'
+      });
+    }
+  } catch (notifyErr) {
+    console.error('Delivery assign notification warning:', notifyErr.message);
+  }
 
   return await getDeliveryById(delivery.id);
 };

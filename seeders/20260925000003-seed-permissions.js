@@ -42,7 +42,39 @@ module.exports = {
       { screen_slug: 'deliveries', slug: 'deliveries.view', name: 'View Deliveries', action: 'view', description: 'View delivery schedules' },
       { screen_slug: 'deliveries', slug: 'deliveries.create', name: 'Create Deliveries', action: 'create', description: 'Schedule new deliveries' },
       { screen_slug: 'deliveries', slug: 'deliveries.edit', name: 'Edit Deliveries', action: 'edit', description: 'Update delivery status and routes' },
-      { screen_slug: 'deliveries', slug: 'deliveries.delete', name: 'Delete Deliveries', action: 'delete', description: 'Cancel deliveries' }
+      { screen_slug: 'deliveries', slug: 'deliveries.delete', name: 'Delete Deliveries', action: 'delete', description: 'Cancel deliveries' },
+
+      // Cart
+      { screen_slug: 'cart', slug: 'cart.view', name: 'View Cart', action: 'view', description: 'View cart items and totals' },
+      { screen_slug: 'cart', slug: 'cart.edit', name: 'Edit Cart', action: 'edit', description: 'Modify cart items and quantities' },
+
+      // Production
+      { screen_slug: 'production', slug: 'production.view', name: 'View Production', action: 'view', description: 'View production batches and capacity' },
+      { screen_slug: 'production', slug: 'production.create', name: 'Create Production', action: 'create', description: 'Schedule new production batches' },
+      { screen_slug: 'production', slug: 'production.edit', name: 'Edit Production', action: 'edit', description: 'Update production status and quantities' },
+
+      // Returns
+      { screen_slug: 'returns', slug: 'returns.view', name: 'View Returns', action: 'view', description: 'View return requests and replacements' },
+      { screen_slug: 'returns', slug: 'returns.create', name: 'Create Returns', action: 'create', description: 'Submit new return and replacement requests' },
+      { screen_slug: 'returns', slug: 'returns.edit', name: 'Edit Returns', action: 'edit', description: 'Update return status and replacement tracking' },
+
+      // Manufacturing
+      { screen_slug: 'manufacturing', slug: 'manufacturing.view', name: 'View Manufacturing', action: 'view', description: 'View manufacturing sector assignments' },
+      { screen_slug: 'manufacturing', slug: 'manufacturing.create', name: 'Create Manufacturing', action: 'create', description: 'Assign staff to manufacturing sectors' },
+      { screen_slug: 'manufacturing', slug: 'manufacturing.edit', name: 'Edit Manufacturing', action: 'edit', description: 'Update manufacturing assignments' },
+      { screen_slug: 'manufacturing', slug: 'manufacturing.delete', name: 'Delete Manufacturing', action: 'delete', description: 'Remove manufacturing assignments' },
+
+      // Expenses
+      { screen_slug: 'expenses', slug: 'expenses.view', name: 'View Expenses', action: 'view', description: 'View expenses, revenue and summaries' },
+      { screen_slug: 'expenses', slug: 'expenses.create', name: 'Create Expenses', action: 'create', description: 'Record company expense or revenue' },
+      { screen_slug: 'expenses', slug: 'expenses.edit', name: 'Edit Expenses', action: 'edit', description: 'Update expense and revenue records' },
+      { screen_slug: 'expenses', slug: 'expenses.delete', name: 'Delete Expenses', action: 'delete', description: 'Delete expense records' },
+
+      // Quality Inspection
+      { screen_slug: 'inspection', slug: 'inspection.view', name: 'View Inspections', action: 'view', description: 'View QA inspection reports' },
+      { screen_slug: 'inspection', slug: 'inspection.create', name: 'Create Inspections', action: 'create', description: 'Create QA inspection records' },
+      { screen_slug: 'inspection', slug: 'inspection.edit', name: 'Edit Inspections', action: 'edit', description: 'Update QA inspection results' },
+      { screen_slug: 'inspection', slug: 'inspection.delete', name: 'Delete Inspections', action: 'delete', description: 'Delete QA inspection reports' }
     ];
 
     for (const perm of permissions) {

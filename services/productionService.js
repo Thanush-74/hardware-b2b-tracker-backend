@@ -1,5 +1,6 @@
 const { Production, Product } = require('../models');
 const { Op } = require('sequelize');
+const notificationService = require('./notificationService');
 
 const ALLOWED_STATUSES = ['Planned', 'In Production', 'Completed', 'Cancelled'];
 
@@ -289,6 +290,16 @@ const updateProductionStatus = async (id, status) => {
 
   await record.update({ status });
   await record.reload();
+
+  try {
+    await notificationService.notifyAdmins({
+      title: 'Production Status Updated',
+      message: `Production batch for "${record.product?.name || 'Product'}" is now "${status}".`,
+      type: 'production_completed'
+    });
+  } catch (notifyErr) {
+    console.error('Production notification warning:', notifyErr.message);
+  }
 
   return formatProductionRecord(record);
 };
