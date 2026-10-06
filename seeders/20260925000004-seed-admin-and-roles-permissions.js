@@ -118,6 +118,9 @@ module.exports = {
 
     // 7. Seed initial Admin staff
     const adminEmail = (process.env.INITIAL_ADMIN_EMAIL || 'admin@company.com').trim().toLowerCase();
+    if (process.env.NODE_ENV === 'production' && !process.env.INITIAL_ADMIN_PASSWORD) {
+      throw new Error('INITIAL_ADMIN_PASSWORD environment variable is required in production mode for initial admin seeding.');
+    }
     const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || 'password';
     const passwordHash = await bcrypt.hash(adminPassword, 10);
 

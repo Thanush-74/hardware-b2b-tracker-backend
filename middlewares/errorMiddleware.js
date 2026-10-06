@@ -24,6 +24,18 @@ const errorMiddleware = (err, req, res, next) => {
     return errorResponse(res, 'Referenced record does not exist', 400);
   }
 
+  if (err.name === 'SequelizeDatabaseError') {
+    return errorResponse(res, 'Invalid database query or data format', 400);
+  }
+
+  if (err.name === 'JsonWebTokenError') {
+    return errorResponse(res, 'Invalid authentication token', 401);
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    return errorResponse(res, 'Authentication token has expired', 401);
+  }
+
   // Prevent internal error leaking in production for generic 500s
   if (statusCode === 500 && process.env.NODE_ENV === 'production') {
     message = 'An unexpected error occurred. Please try again later.';

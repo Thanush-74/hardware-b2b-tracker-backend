@@ -1,5 +1,6 @@
 const { Return, Order, Product } = require('../models');
 const { Op } = require('sequelize');
+const notificationService = require('./notificationService');
 
 const ALLOWED_RETURN_STATUSES = [
   'Requested',
@@ -130,6 +131,16 @@ const createReturn = async ({
     replacement_quantity: parseInt(replacement_quantity, 10) || 0,
     notes: notes ? notes.trim() : null
   });
+
+  try {
+    await notificationService.notifyAdmins({
+      title: 'Return Request Created',
+      message: `Return request #${returnNumber} submitted for "${product.name}" (${returnQty} units).`,
+      type: 'product_return'
+    });
+  } catch (notifyErr) {
+    console.error('Return notification warning:', notifyErr.message);
+  }
 
   return await getReturnById(returnRecord.id);
 };

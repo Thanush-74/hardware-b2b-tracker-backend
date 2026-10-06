@@ -1,4 +1,4 @@
-const { Product, Inventory } = require('../models');
+const { Product, Inventory, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 /**
@@ -38,26 +38,33 @@ const createProduct = async ({ name, type, specifications, price, available_quan
     throw error;
   }
 
-  // 2. Create product in database
-  const product = await Product.create({
-    name: name.trim(),
-    type: type.trim(),
-    specifications: specifications || null,
-    price: numericPrice,
-    available_quantity: numericQuantity,
-    description: description ? description.trim() : null,
-    is_active: is_active !== undefined ? Boolean(is_active) : true
-  });
+  // 2. Create product & inventory in database inside a transaction
+  const transaction = await sequelize.transaction();
+  try {
+    const product = await Product.create({
+      name: name.trim(),
+      type: type.trim(),
+      specifications: specifications || null,
+      price: numericPrice,
+      available_quantity: numericQuantity,
+      description: description ? description.trim() : null,
+      is_active: is_active !== undefined ? Boolean(is_active) : true
+    }, { transaction });
 
-  // 3. Create corresponding inventory record
-  await Inventory.create({
-    product_id: product.id,
-    quantity: numericQuantity,
-    reserved_quantity: 0,
-    location: 'Main Warehouse'
-  });
+    // 3. Create corresponding inventory record
+    await Inventory.create({
+      product_id: product.id,
+      quantity: numericQuantity,
+      reserved_quantity: 0,
+      location: 'Main Warehouse'
+    }, { transaction });
 
-  return product;
+    await transaction.commit();
+    return product;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
 };
 
 /**
@@ -183,9 +190,24 @@ const updateProduct = async (id, data) => {
     updateFields.is_active = Boolean(data.is_active);
   }
 
-  await product.update(updateFields);
+  const transaction = await sequelize.transaction();
+  try {
+    await product.update(updateFields, { transaction });
 
-  return product;
+    if (data.available_quantity !== undefined) {
+      const inv = await Inventory.findOne({ where: { product_id: product.id }, transaction });
+      if (inv) {
+        const newTotalQty = updateFields.available_quantity + (inv.reserved_quantity || 0);
+        await inv.update({ quantity: newTotalQty }, { transaction });
+      }
+    }
+
+    await transaction.commit();
+    return product;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
 };
 
 /**

@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { Inspection, Staff, Product, Return, Production, Role } = require('../models');
+const notificationService = require('./notificationService');
 
 /**
  * Inspection Service
@@ -95,6 +96,26 @@ async function createInspection(inspectionData) {
     severity: severity || 'Low',
     notes: notes || null
   });
+
+  try {
+    if (inspector_id) {
+      await notificationService.createNotification({
+        recipient_staff_id: inspector_id,
+        title: 'Inspection Logged',
+        message: `Quality inspection for ${item_type} recorded with result: ${result}.`,
+        type: 'inspection_result'
+      });
+    }
+    if (result === 'Failed' || severity === 'High' || severity === 'Critical') {
+      await notificationService.notifyAdmins({
+        title: 'QA Inspection Alert',
+        message: `Quality inspection recorded ${result} (${defect_type || 'Defect detected'}).`,
+        type: 'inspection_result'
+      });
+    }
+  } catch (notifyErr) {
+    console.error('Inspection notification warning:', notifyErr.message);
+  }
 
   return getInspectionById(inspection.id);
 }

@@ -1,5 +1,6 @@
 const { Order, OrderItem, Product, Inventory, Staff, Cart, CartItem, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const notificationService = require('./notificationService');
 
 const ALLOWED_ORDER_STATUSES = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 const ALLOWED_PAYMENT_STATUSES = ['Pending', 'Paid', 'Failed', 'Partially Paid'];
@@ -167,51 +168,78 @@ const createOrder = async (staffId, {
     ? grandTotal
     : Number(payment_amount) || 0;
 
-  // 5. Create Order and OrderItems
-  const orderNumber = generateOrderNumber();
+  // 5. Create Order, OrderItems, update stocks and clear cart atomically inside a transaction
+  const transaction = await sequelize.transaction();
+  try {
+    const orderNumber = generateOrderNumber();
 
-  const order = await Order.create({
-    order_number: orderNumber,
-    customer_name: customer_name.trim(),
-    customer_email: customer_email ? customer_email.trim().toLowerCase() : null,
-    customer_phone: customer_phone ? customer_phone.trim() : null,
-    staff_id: staffId || null,
-    total_amount: grandTotal,
-    order_status: 'Pending',
-    payment_method: payment_method || 'Bank Transfer',
-    payment_status: payment_status || 'Pending',
-    payment_amount: numericPaymentAmount,
-    order_date: new Date(),
-    notes: notes ? notes.trim() : null
-  });
+    const order = await Order.create({
+      order_number: orderNumber,
+      customer_name: customer_name.trim(),
+      customer_email: customer_email ? customer_email.trim().toLowerCase() : null,
+      customer_phone: customer_phone ? customer_phone.trim() : null,
+      staff_id: staffId || null,
+      total_amount: grandTotal,
+      order_status: 'Pending',
+      payment_method: payment_method || 'Bank Transfer',
+      payment_status: payment_status || 'Pending',
+      payment_amount: numericPaymentAmount,
+      order_date: new Date(),
+      notes: notes ? notes.trim() : null
+    }, { transaction });
 
-  // 6. Create items and deduct stock from product and inventory
-  for (const itemData of verifiedItems) {
-    await OrderItem.create({
-      order_id: order.id,
-      product_id: itemData.product_id,
-      quantity: itemData.quantity,
-      unit_price: itemData.unit_price,
-      total_price: itemData.total_price
-    });
+    // 6. Create items and deduct stock from product and inventory
+    for (const itemData of verifiedItems) {
+      await OrderItem.create({
+        order_id: order.id,
+        product_id: itemData.product_id,
+        quantity: itemData.quantity,
+        unit_price: itemData.unit_price,
+        total_price: itemData.total_price
+      }, { transaction });
 
-    // Deduct stock
-    const newStock = Math.max(0, itemData.product.available_quantity - itemData.quantity);
-    await itemData.product.update({ available_quantity: newStock });
+      // Deduct stock
+      const newStock = Math.max(0, itemData.product.available_quantity - itemData.quantity);
+      await itemData.product.update({ available_quantity: newStock }, { transaction });
 
-    const inv = await Inventory.findOne({ where: { product_id: itemData.product_id } });
-    if (inv) {
-      const newInvQty = Math.max(0, inv.quantity - itemData.quantity);
-      await inv.update({ quantity: newInvQty });
+      const inv = await Inventory.findOne({ where: { product_id: itemData.product_id }, transaction });
+      if (inv) {
+        const newInvQty = Math.max(0, inv.quantity - itemData.quantity);
+        await inv.update({ quantity: newInvQty }, { transaction });
+      }
     }
-  }
 
-  // 7. Clear cart if cart was converted
-  if (cartToClear) {
-    await CartItem.destroy({ where: { cart_id: cartToClear.id } });
-  }
+    // 7. Clear cart if cart was converted
+    if (cartToClear) {
+      await CartItem.destroy({ where: { cart_id: cartToClear.id }, transaction });
+    }
 
-  return await getOrderById(order.id);
+    await transaction.commit();
+
+    // Trigger asynchronous business notifications
+    try {
+      if (staffId) {
+        await notificationService.createNotification({
+          recipient_staff_id: staffId,
+          title: 'Order Created',
+          message: `Order #${order.order_number} for ${customer_name.trim()} (₹${grandTotal.toFixed(2)}) has been created successfully.`,
+          type: 'order_created'
+        });
+      }
+      await notificationService.notifyAdmins({
+        title: 'New Order Received',
+        message: `Order #${order.order_number} received from ${customer_name.trim()} for ₹${grandTotal.toFixed(2)}.`,
+        type: 'order_created'
+      });
+    } catch (notifyErr) {
+      console.error('Order notification warning:', notifyErr.message);
+    }
+
+    return await getOrderById(order.id);
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
 };
 
 /**
@@ -354,24 +382,68 @@ const updateOrderStatus = async (id, order_status) => {
 
   const previousStatus = order.order_status;
 
-  // If newly cancelling an order, restore stock
-  if (order_status === 'Cancelled' && previousStatus !== 'Cancelled') {
-    const items = order.items || [];
-    for (const item of items) {
-      const prod = await Product.findByPk(item.product_id);
-      if (prod) {
-        await prod.update({ available_quantity: prod.available_quantity + item.quantity });
-      }
-      const inv = await Inventory.findOne({ where: { product_id: item.product_id } });
-      if (inv) {
-        await inv.update({ quantity: inv.quantity + item.quantity });
-      }
-    }
+  // If order is already in target status, return directly
+  if (previousStatus === order_status) {
+    return await getOrderById(order.id);
   }
 
-  await order.update({ order_status });
+  // Prevent modifying an already cancelled order to prevent stock duplication
+  if (previousStatus === 'Cancelled') {
+    const error = new Error('Cannot change the status of an order that has already been cancelled');
+    error.statusCode = 400;
+    throw error;
+  }
 
-  return await getOrderById(order.id);
+  // Prevent direct cancellation of delivered orders (returns process required)
+  if (previousStatus === 'Delivered' && order_status === 'Cancelled') {
+    const error = new Error('Delivered orders cannot be cancelled directly. Please initiate a return request.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const transaction = await sequelize.transaction();
+  try {
+    // If newly cancelling an order, restore stock atomically exactly once
+    if (order_status === 'Cancelled' && previousStatus !== 'Cancelled') {
+      const items = order.items || [];
+      for (const item of items) {
+        const prod = await Product.findByPk(item.product_id, { transaction });
+        if (prod) {
+          await prod.update({ available_quantity: prod.available_quantity + item.quantity }, { transaction });
+        }
+        const inv = await Inventory.findOne({ where: { product_id: item.product_id }, transaction });
+        if (inv) {
+          await inv.update({ quantity: inv.quantity + item.quantity }, { transaction });
+        }
+      }
+    }
+
+    await order.update({ order_status }, { transaction });
+    await transaction.commit();
+
+    try {
+      if (order.staff_id) {
+        await notificationService.createNotification({
+          recipient_staff_id: order.staff_id,
+          title: 'Order Status Changed',
+          message: `Order #${order.order_number} status is now "${order_status}".`,
+          type: 'order_status'
+        });
+      }
+      await notificationService.notifyAdmins({
+        title: 'Order Status Changed',
+        message: `Order #${order.order_number} status has been updated to "${order_status}".`,
+        type: 'order_status'
+      });
+    } catch (notifyErr) {
+      console.error('Order status notification warning:', notifyErr.message);
+    }
+
+    return await getOrderById(order.id);
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
 };
 
 /**
@@ -417,6 +489,26 @@ const updatePaymentStatus = async (id, { payment_status, payment_amount, payment
   }
 
   await order.update(updateFields);
+
+  try {
+    if (order.staff_id && payment_status) {
+      await notificationService.createNotification({
+        recipient_staff_id: order.staff_id,
+        title: 'Order Payment Updated',
+        message: `Order #${order.order_number} payment status updated to "${payment_status}".`,
+        type: 'payment_status'
+      });
+    }
+    if (payment_status) {
+      await notificationService.notifyAdmins({
+        title: 'Order Payment Updated',
+        message: `Order #${order.order_number} payment status updated to "${payment_status}".`,
+        type: 'payment_status'
+      });
+    }
+  } catch (notifyErr) {
+    console.error('Payment notification warning:', notifyErr.message);
+  }
 
   return await getOrderById(order.id);
 };
