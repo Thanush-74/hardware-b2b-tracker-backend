@@ -139,6 +139,13 @@ module.exports = {
         created_at: new Date(),
         updated_at: new Date()
       }]);
+    } else if (existingAdmin && adminRoleId) {
+      await queryInterface.bulkUpdate('staff', {
+        password_hash: passwordHash,
+        role_id: adminRoleId,
+        is_active: true,
+        updated_at: new Date()
+      }, { email: adminEmail });
     }
   },
 
