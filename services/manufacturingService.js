@@ -179,7 +179,17 @@ async function updateAssignment(id, updateData) {
     throw error;
   }
 
-  const { sector, product_id, start_date, end_date, status, shift, notes } = updateData;
+  const { staff_id, sector, product_id, start_date, end_date, status, shift, notes } = updateData;
+
+  if (staff_id) {
+    const staff = await Staff.findByPk(staff_id);
+    if (!staff) {
+      const error = new Error('Staff member not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    assignment.staff_id = staff_id;
+  }
 
   if (product_id) {
     const product = await Product.findByPk(product_id);
