@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "test": "node scripts/test-backend.js",
+    "test:security": "node scripts/test-session-security.js",
     "test:api": "node scripts/test-backend.js",
     "test:products": "node scripts/test-product-api.js",
     "test:cart": "node scripts/test-cart-api.js",
