@@ -6,8 +6,11 @@ const { successResponse } = require('../utils/response');
  * POST /api/products
  */
 const createProduct = async (req, res, next) => {
+  console.log(req.body, "111111111111111111111111111111111111111111111");
+
   try {
     const product = await productService.createProduct(req.body);
+
     return successResponse(res, 'Product created successfully', product, 201);
   } catch (error) {
     return next(error);
