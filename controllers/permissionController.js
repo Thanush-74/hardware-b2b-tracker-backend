@@ -1,5 +1,5 @@
 const permissionService = require('../services/permissionService');
-const { sequelize } = require('../models');
+const { Permission, sequelize } = require('../models');
 const { successResponse } = require('../utils/response');
 const HTTP_STATUS = require('../constants/httpStatusCodes');
 
@@ -36,7 +36,13 @@ const getRolePermissions = async (req, res, next) => {
 const updateRolePermissions = async (req, res, next) => {
   const transaction = await sequelize.transaction();
   try {
-    const { permission_ids } = req.body;
+    let { permission_ids, screen_ids } = req.body;
+    if ((!permission_ids || !Array.isArray(permission_ids)) && Array.isArray(screen_ids)) {
+      const perms = await Permission.findAll({
+        where: { screen_id: screen_ids }
+      });
+      permission_ids = perms.map(p => Number(p.id));
+    }
     const permissions = await permissionService.updateRolePermissions(req.params.roleId, permission_ids, transaction);
     await transaction.commit();
     return successResponse(res, 'Role permissions updated successfully', permissions, HTTP_STATUS.OK);
