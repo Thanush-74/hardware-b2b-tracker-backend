@@ -1,4 +1,5 @@
 const { errorResponse } = require('../utils/response');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Reusable permission middleware to enforce role-based permission checks
@@ -8,7 +9,7 @@ const requirePermission = (requiredPermissions) => {
   return (req, res, next) => {
     // 1. Ensure user is authenticated
     if (!req.user) {
-      return errorResponse(res, 'Authentication required', 401);
+      return errorResponse(res, 'Authentication required', HTTP_STATUS.UNAUTHORIZED);
     }
 
     // 2. Admin role has unrestricted access
@@ -29,7 +30,7 @@ const requirePermission = (requiredPermissions) => {
       return errorResponse(
         res,
         `Forbidden: Insufficient permissions (${permissions.join(', ')})`,
-        403
+        HTTP_STATUS.FORBIDDEN
       );
     }
 

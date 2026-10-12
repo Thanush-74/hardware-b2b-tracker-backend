@@ -1,5 +1,6 @@
 const orderService = require('../services/orderService');
 const { successResponse } = require('../utils/response');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Create a new customer order
@@ -9,7 +10,7 @@ const createOrder = async (req, res, next) => {
   try {
     const staffId = req.user.id;
     const order = await orderService.createOrder(staffId, req.body);
-    return successResponse(res, 'Order created successfully', order, 201);
+    return successResponse(res, 'Order created successfully', order, HTTP_STATUS.CREATED);
   } catch (error) {
     return next(error);
   }
@@ -22,7 +23,7 @@ const createOrder = async (req, res, next) => {
 const getAllOrders = async (req, res, next) => {
   try {
     const result = await orderService.getAllOrders(req.query);
-    return successResponse(res, 'Orders retrieved successfully', result, 200);
+    return successResponse(res, 'Orders retrieved successfully', result, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -35,7 +36,7 @@ const getAllOrders = async (req, res, next) => {
 const getOrderById = async (req, res, next) => {
   try {
     const order = await orderService.getOrderById(req.params.id);
-    return successResponse(res, 'Order retrieved successfully', order, 200);
+    return successResponse(res, 'Order retrieved successfully', order, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -48,7 +49,7 @@ const getOrderById = async (req, res, next) => {
 const updateOrder = async (req, res, next) => {
   try {
     const order = await orderService.updateOrder(req.params.id, req.body);
-    return successResponse(res, 'Order updated successfully', order, 200);
+    return successResponse(res, 'Order updated successfully', order, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -62,7 +63,7 @@ const updateOrderStatus = async (req, res, next) => {
   try {
     const { order_status } = req.body;
     const order = await orderService.updateOrderStatus(req.params.id, order_status);
-    return successResponse(res, 'Order status updated successfully', order, 200);
+    return successResponse(res, 'Order status updated successfully', order, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -75,7 +76,7 @@ const updateOrderStatus = async (req, res, next) => {
 const updatePaymentStatus = async (req, res, next) => {
   try {
     const order = await orderService.updatePaymentStatus(req.params.id, req.body);
-    return successResponse(res, 'Payment status updated successfully', order, 200);
+    return successResponse(res, 'Payment status updated successfully', order, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }

@@ -1,4 +1,5 @@
 const expenseService = require('../services/expenseService');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Expense Controller
@@ -13,13 +14,13 @@ async function createExpense(req, res) {
       staff_id: req.body.staff_id || req.user?.id
     };
     const expense = await expenseService.createExpense(expenseData);
-    return res.status(201).json({
+    return res.status(HTTP_STATUS.CREATED).json({
       success: true,
       message: 'Expense record created successfully',
       data: expense
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to create expense record'
@@ -31,12 +32,12 @@ async function createExpense(req, res) {
 async function getAllExpenses(req, res) {
   try {
     const result = await expenseService.getAllExpenses(req.query);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       data: result
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to fetch expense records'
@@ -48,12 +49,12 @@ async function getAllExpenses(req, res) {
 async function getExpenseById(req, res) {
   try {
     const expense = await expenseService.getExpenseById(req.params.id);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       data: expense
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to fetch expense record'
@@ -65,13 +66,13 @@ async function getExpenseById(req, res) {
 async function updateExpense(req, res) {
   try {
     const updated = await expenseService.updateExpense(req.params.id, req.body);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       message: 'Expense record updated successfully',
       data: updated
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to update expense record'
@@ -83,12 +84,12 @@ async function updateExpense(req, res) {
 async function deleteExpense(req, res) {
   try {
     const result = await expenseService.deleteExpense(req.params.id);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       message: result.message
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to delete expense record'
@@ -100,12 +101,12 @@ async function deleteExpense(req, res) {
 async function getExpenseSummary(req, res) {
   try {
     const summary = await expenseService.getExpenseSummary(req.query);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       data: summary
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to calculate expense summary'

@@ -1,3 +1,5 @@
+const HTTP_STATUS = require('../constants/httpStatusCodes');
+
 /**
  * Send standardized success response
  * @param {object} res - Express response object
@@ -5,7 +7,7 @@
  * @param {object|array} data - Response payload
  * @param {number} statusCode - HTTP status code
  */
-const successResponse = (res, message = 'Success', data = {}, statusCode = 200) => {
+const successResponse = (res, message = 'Success', data = {}, statusCode = HTTP_STATUS.OK) => {
   return res.status(statusCode).json({
     success: true,
     message,
@@ -20,7 +22,7 @@ const successResponse = (res, message = 'Success', data = {}, statusCode = 200) 
  * @param {number} statusCode - HTTP status code
  * @param {any} errors - Optional error details
  */
-const errorResponse = (res, message = 'An error occurred', statusCode = 500, errors = null) => {
+const errorResponse = (res, message = 'An error occurred', statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR, errors = null) => {
   const response = {
     success: false,
     message

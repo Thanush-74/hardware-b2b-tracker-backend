@@ -1,4 +1,5 @@
 const manufacturingService = require('../services/manufacturingService');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Manufacturing Controller
@@ -9,13 +10,13 @@ const manufacturingService = require('../services/manufacturingService');
 async function createAssignment(req, res) {
   try {
     const assignment = await manufacturingService.createAssignment(req.body);
-    return res.status(201).json({
+    return res.status(HTTP_STATUS.CREATED).json({
       success: true,
       message: 'Manufacturing assignment created successfully',
       data: assignment
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to create manufacturing assignment'
@@ -27,12 +28,12 @@ async function createAssignment(req, res) {
 async function getAllAssignments(req, res) {
   try {
     const result = await manufacturingService.getAllAssignments(req.query);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       data: result
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to fetch manufacturing assignments'
@@ -44,12 +45,12 @@ async function getAllAssignments(req, res) {
 async function getAssignmentById(req, res) {
   try {
     const assignment = await manufacturingService.getAssignmentById(req.params.id);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       data: assignment
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to fetch manufacturing assignment'
@@ -61,13 +62,13 @@ async function getAssignmentById(req, res) {
 async function updateAssignment(req, res) {
   try {
     const updated = await manufacturingService.updateAssignment(req.params.id, req.body);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       message: 'Manufacturing assignment updated successfully',
       data: updated
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to update manufacturing assignment'
@@ -79,12 +80,12 @@ async function updateAssignment(req, res) {
 async function deleteAssignment(req, res) {
   try {
     const result = await manufacturingService.deleteAssignment(req.params.id);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       message: result.message
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to delete manufacturing assignment'
@@ -96,12 +97,12 @@ async function deleteAssignment(req, res) {
 async function getSectorSummary(req, res) {
   try {
     const summary = await manufacturingService.getSectorSummary();
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       data: summary
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to fetch manufacturing sector summary'

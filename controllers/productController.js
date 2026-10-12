@@ -1,5 +1,6 @@
 const productService = require('../services/productService');
 const { successResponse } = require('../utils/response');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Create a new product
@@ -11,7 +12,7 @@ const createProduct = async (req, res, next) => {
   try {
     const product = await productService.createProduct(req.body);
 
-    return successResponse(res, 'Product created successfully', product, 201);
+    return successResponse(res, 'Product created successfully', product, HTTP_STATUS.CREATED);
   } catch (error) {
     return next(error);
   }
@@ -24,7 +25,7 @@ const createProduct = async (req, res, next) => {
 const getAllProducts = async (req, res, next) => {
   try {
     const result = await productService.getAllProducts(req.query);
-    return successResponse(res, 'Products retrieved successfully', result, 200);
+    return successResponse(res, 'Products retrieved successfully', result, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -37,7 +38,7 @@ const getAllProducts = async (req, res, next) => {
 const getProductById = async (req, res, next) => {
   try {
     const product = await productService.getProductById(req.params.id);
-    return successResponse(res, 'Product retrieved successfully', product, 200);
+    return successResponse(res, 'Product retrieved successfully', product, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -50,7 +51,7 @@ const getProductById = async (req, res, next) => {
 const updateProduct = async (req, res, next) => {
   try {
     const product = await productService.updateProduct(req.params.id, req.body);
-    return successResponse(res, 'Product updated successfully', product, 200);
+    return successResponse(res, 'Product updated successfully', product, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -63,7 +64,7 @@ const updateProduct = async (req, res, next) => {
 const deleteProduct = async (req, res, next) => {
   try {
     const product = await productService.deactivateProduct(req.params.id);
-    return successResponse(res, 'Product deactivated successfully', product, 200);
+    return successResponse(res, 'Product deactivated successfully', product, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }

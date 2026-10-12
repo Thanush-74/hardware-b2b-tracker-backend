@@ -1,5 +1,6 @@
 const roleService = require('../services/roleService');
 const { successResponse } = require('../utils/response');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Get all roles
@@ -8,7 +9,7 @@ const { successResponse } = require('../utils/response');
 const getAllRoles = async (req, res, next) => {
   try {
     const roles = await roleService.getAllRoles();
-    return successResponse(res, 'Roles retrieved successfully', roles, 200);
+    return successResponse(res, 'Roles retrieved successfully', roles, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -21,7 +22,7 @@ const getAllRoles = async (req, res, next) => {
 const getRoleById = async (req, res, next) => {
   try {
     const role = await roleService.getRoleById(req.params.id);
-    return successResponse(res, 'Role retrieved successfully', role, 200);
+    return successResponse(res, 'Role retrieved successfully', role, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -43,7 +44,7 @@ const createRole = async (req, res, next) => {
       permissions,
       permission_ids
     });
-    return successResponse(res, 'Role created successfully', role, 201);
+    return successResponse(res, 'Role created successfully', role, HTTP_STATUS.CREATED);
   } catch (error) {
     return next(error);
   }

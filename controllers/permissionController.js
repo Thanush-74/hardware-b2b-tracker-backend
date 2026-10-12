@@ -1,6 +1,7 @@
 const permissionService = require('../services/permissionService');
 const { sequelize } = require('../models');
 const { successResponse } = require('../utils/response');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Get all available permissions
@@ -9,7 +10,7 @@ const { successResponse } = require('../utils/response');
 const getAllPermissions = async (req, res, next) => {
   try {
     const permissions = await permissionService.getAllPermissions();
-    return successResponse(res, 'Permissions retrieved successfully', permissions, 200);
+    return successResponse(res, 'Permissions retrieved successfully', permissions, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -22,7 +23,7 @@ const getAllPermissions = async (req, res, next) => {
 const getRolePermissions = async (req, res, next) => {
   try {
     const permissions = await permissionService.getRolePermissions(req.params.roleId);
-    return successResponse(res, 'Role permissions retrieved successfully', permissions, 200);
+    return successResponse(res, 'Role permissions retrieved successfully', permissions, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -38,7 +39,7 @@ const updateRolePermissions = async (req, res, next) => {
     const { permission_ids } = req.body;
     const permissions = await permissionService.updateRolePermissions(req.params.roleId, permission_ids, transaction);
     await transaction.commit();
-    return successResponse(res, 'Role permissions updated successfully', permissions, 200);
+    return successResponse(res, 'Role permissions updated successfully', permissions, HTTP_STATUS.OK);
   } catch (error) {
     await transaction.rollback();
     return next(error);
@@ -52,7 +53,7 @@ const updateRolePermissions = async (req, res, next) => {
 const getStaffPermissions = async (req, res, next) => {
   try {
     const data = await permissionService.getStaffPermissions(req.params.staffId);
-    return successResponse(res, 'Staff permissions retrieved successfully', data, 200);
+    return successResponse(res, 'Staff permissions retrieved successfully', data, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -68,7 +69,7 @@ const updateStaffPermissions = async (req, res, next) => {
     const { permission_ids } = req.body;
     const permissions = await permissionService.updateStaffPermissions(req.params.staffId, permission_ids, transaction);
     await transaction.commit();
-    return successResponse(res, 'Staff specific permissions updated successfully', permissions, 200);
+    return successResponse(res, 'Staff specific permissions updated successfully', permissions, HTTP_STATUS.OK);
   } catch (error) {
     await transaction.rollback();
     return next(error);

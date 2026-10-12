@@ -1,5 +1,6 @@
 const inventoryService = require('../services/inventoryService');
 const { successResponse } = require('../utils/response');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Get all inventory records
@@ -8,7 +9,7 @@ const { successResponse } = require('../utils/response');
 const getAllInventory = async (req, res, next) => {
   try {
     const result = await inventoryService.getAllInventory(req.query);
-    return successResponse(res, 'Inventory retrieved successfully', result, 200);
+    return successResponse(res, 'Inventory retrieved successfully', result, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -21,7 +22,7 @@ const getAllInventory = async (req, res, next) => {
 const getInventoryById = async (req, res, next) => {
   try {
     const item = await inventoryService.getInventoryById(req.params.id);
-    return successResponse(res, 'Inventory record retrieved successfully', item, 200);
+    return successResponse(res, 'Inventory record retrieved successfully', item, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -34,7 +35,7 @@ const getInventoryById = async (req, res, next) => {
 const updateStock = async (req, res, next) => {
   try {
     const item = await inventoryService.updateStock(req.params.id, req.body);
-    return successResponse(res, 'Inventory updated successfully', item, 200);
+    return successResponse(res, 'Inventory updated successfully', item, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -48,7 +49,7 @@ const increaseStock = async (req, res, next) => {
   try {
     const { amount } = req.body;
     const item = await inventoryService.increaseStock(req.params.id, amount);
-    return successResponse(res, 'Stock increased successfully', item, 200);
+    return successResponse(res, 'Stock increased successfully', item, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -62,7 +63,7 @@ const decreaseStock = async (req, res, next) => {
   try {
     const { amount } = req.body;
     const item = await inventoryService.decreaseStock(req.params.id, amount);
-    return successResponse(res, 'Stock decreased successfully', item, 200);
+    return successResponse(res, 'Stock decreased successfully', item, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }

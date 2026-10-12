@@ -5,6 +5,7 @@ const { testConnection } = require('./config/database');
 const apiRoutes = require('./routes');
 const errorMiddleware = require('./middlewares/errorMiddleware');
 const { successResponse, errorResponse } = require('./utils/response');
+const HTTP_STATUS = require('./constants/httpStatusCodes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,7 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Root health check endpoint
 app.get('/', (req, res) => {
-  return res.status(200).json({
+  return res.status(HTTP_STATUS.OK).json({
     success: true,
     message: 'Hardware B2B Tracker Backend is running'
   });
@@ -29,7 +30,7 @@ app.use('/api', apiRoutes);
 
 // 404 Not Found Handler for unmatched routes
 app.use((req, res, next) => {
-  return errorResponse(res, `Route not found: ${req.method} ${req.originalUrl}`, 404);
+  return errorResponse(res, `Route not found: ${req.method} ${req.originalUrl}`, HTTP_STATUS.NOT_FOUND);
 });
 
 // Centralized Error Handling Middleware

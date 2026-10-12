@@ -1,5 +1,6 @@
 const screenService = require('../services/screenService');
 const { successResponse } = require('../utils/response');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Get all screens
@@ -8,7 +9,7 @@ const { successResponse } = require('../utils/response');
 const getAllScreens = async (req, res, next) => {
   try {
     const screens = await screenService.getAllScreens();
-    return successResponse(res, 'Screens retrieved successfully', screens, 200);
+    return successResponse(res, 'Screens retrieved successfully', screens, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }

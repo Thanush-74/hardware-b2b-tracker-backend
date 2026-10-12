@@ -1,5 +1,6 @@
 const deliveryService = require('../services/deliveryService');
 const { successResponse } = require('../utils/response');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Create a new delivery record
@@ -8,7 +9,7 @@ const { successResponse } = require('../utils/response');
 const createDelivery = async (req, res, next) => {
   try {
     const delivery = await deliveryService.createDelivery(req.body);
-    return successResponse(res, 'Delivery record created successfully', delivery, 201);
+    return successResponse(res, 'Delivery record created successfully', delivery, HTTP_STATUS.CREATED);
   } catch (error) {
     return next(error);
   }
@@ -21,7 +22,7 @@ const createDelivery = async (req, res, next) => {
 const getAllDeliveries = async (req, res, next) => {
   try {
     const result = await deliveryService.getAllDeliveries(req.query);
-    return successResponse(res, 'Deliveries retrieved successfully', result, 200);
+    return successResponse(res, 'Deliveries retrieved successfully', result, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -34,7 +35,7 @@ const getAllDeliveries = async (req, res, next) => {
 const getDeliveryById = async (req, res, next) => {
   try {
     const delivery = await deliveryService.getDeliveryById(req.params.id);
-    return successResponse(res, 'Delivery retrieved successfully', delivery, 200);
+    return successResponse(res, 'Delivery retrieved successfully', delivery, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -47,7 +48,7 @@ const getDeliveryById = async (req, res, next) => {
 const updateDelivery = async (req, res, next) => {
   try {
     const delivery = await deliveryService.updateDelivery(req.params.id, req.body);
-    return successResponse(res, 'Delivery updated successfully', delivery, 200);
+    return successResponse(res, 'Delivery updated successfully', delivery, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -61,7 +62,7 @@ const updateDeliveryStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
     const delivery = await deliveryService.updateDeliveryStatus(req.params.id, status);
-    return successResponse(res, 'Delivery status updated successfully', delivery, 200);
+    return successResponse(res, 'Delivery status updated successfully', delivery, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -75,7 +76,7 @@ const assignDeliveryStaff = async (req, res, next) => {
   try {
     const { delivery_staff_id } = req.body;
     const delivery = await deliveryService.assignDeliveryStaff(req.params.id, delivery_staff_id);
-    return successResponse(res, 'Delivery staff assigned successfully', delivery, 200);
+    return successResponse(res, 'Delivery staff assigned successfully', delivery, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }

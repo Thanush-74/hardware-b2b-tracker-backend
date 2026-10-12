@@ -1,5 +1,6 @@
 const staffService = require('../services/staffService');
 const { successResponse } = require('../utils/response');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Create a new staff member (Admin only)
@@ -15,7 +16,7 @@ const createStaff = async (req, res, next) => {
       password,
       role_id
     });
-    return successResponse(res, 'Staff member created successfully', staff, 201);
+    return successResponse(res, 'Staff member created successfully', staff, HTTP_STATUS.CREATED);
   } catch (error) {
     return next(error);
   }
@@ -28,7 +29,7 @@ const createStaff = async (req, res, next) => {
 const getAllStaff = async (req, res, next) => {
   try {
     const result = await staffService.getAllStaff(req.query);
-    return successResponse(res, 'Staff members retrieved successfully', result, 200);
+    return successResponse(res, 'Staff members retrieved successfully', result, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -41,7 +42,7 @@ const getAllStaff = async (req, res, next) => {
 const getStaffById = async (req, res, next) => {
   try {
     const staff = await staffService.getStaffById(req.params.id);
-    return successResponse(res, 'Staff member retrieved successfully', staff, 200);
+    return successResponse(res, 'Staff member retrieved successfully', staff, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -61,7 +62,7 @@ const updateStaff = async (req, res, next) => {
       role_id,
       password
     });
-    return successResponse(res, 'Staff member updated successfully', updatedStaff, 200);
+    return successResponse(res, 'Staff member updated successfully', updatedStaff, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -75,7 +76,7 @@ const updateStaffStatus = async (req, res, next) => {
   try {
     const { is_active } = req.body;
     const updatedStaff = await staffService.updateStaffStatus(req.params.id, is_active);
-    return successResponse(res, `Staff member status updated to ${is_active ? 'active' : 'inactive'}`, updatedStaff, 200);
+    return successResponse(res, `Staff member status updated to ${is_active ? 'active' : 'inactive'}`, updatedStaff, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }

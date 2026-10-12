@@ -1,5 +1,6 @@
 const returnService = require('../services/returnService');
 const { successResponse } = require('../utils/response');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Create a new return / replacement request
@@ -8,7 +9,7 @@ const { successResponse } = require('../utils/response');
 const createReturn = async (req, res, next) => {
   try {
     const record = await returnService.createReturn(req.body);
-    return successResponse(res, 'Return request created successfully', record, 201);
+    return successResponse(res, 'Return request created successfully', record, HTTP_STATUS.CREATED);
   } catch (error) {
     return next(error);
   }
@@ -21,7 +22,7 @@ const createReturn = async (req, res, next) => {
 const getAllReturns = async (req, res, next) => {
   try {
     const result = await returnService.getAllReturns(req.query);
-    return successResponse(res, 'Return records retrieved successfully', result, 200);
+    return successResponse(res, 'Return records retrieved successfully', result, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -34,7 +35,7 @@ const getAllReturns = async (req, res, next) => {
 const getReturnById = async (req, res, next) => {
   try {
     const record = await returnService.getReturnById(req.params.id);
-    return successResponse(res, 'Return record retrieved successfully', record, 200);
+    return successResponse(res, 'Return record retrieved successfully', record, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -47,7 +48,7 @@ const getReturnById = async (req, res, next) => {
 const updateReturn = async (req, res, next) => {
   try {
     const record = await returnService.updateReturn(req.params.id, req.body);
-    return successResponse(res, 'Return record updated successfully', record, 200);
+    return successResponse(res, 'Return record updated successfully', record, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -61,7 +62,7 @@ const updateReturnStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
     const record = await returnService.updateReturnStatus(req.params.id, status);
-    return successResponse(res, 'Return status updated successfully', record, 200);
+    return successResponse(res, 'Return status updated successfully', record, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -74,7 +75,7 @@ const updateReturnStatus = async (req, res, next) => {
 const recordReplacement = async (req, res, next) => {
   try {
     const record = await returnService.recordReplacement(req.params.id, req.body);
-    return successResponse(res, 'Replacement information updated successfully', record, 200);
+    return successResponse(res, 'Replacement information updated successfully', record, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }

@@ -1,4 +1,5 @@
 const inspectionService = require('../services/inspectionService');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Inspection Controller
@@ -13,13 +14,13 @@ async function createInspection(req, res) {
       inspector_id: req.body.inspector_id || req.user?.id
     };
     const inspection = await inspectionService.createInspection(inspectionData);
-    return res.status(201).json({
+    return res.status(HTTP_STATUS.CREATED).json({
       success: true,
       message: 'Inspection record created successfully',
       data: inspection
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to create inspection record'
@@ -31,12 +32,12 @@ async function createInspection(req, res) {
 async function getAllInspections(req, res) {
   try {
     const result = await inspectionService.getAllInspections(req.query);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       data: result
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to fetch inspection records'
@@ -48,12 +49,12 @@ async function getAllInspections(req, res) {
 async function getInspectionById(req, res) {
   try {
     const inspection = await inspectionService.getInspectionById(req.params.id);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       data: inspection
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to fetch inspection record'
@@ -65,13 +66,13 @@ async function getInspectionById(req, res) {
 async function updateInspection(req, res) {
   try {
     const updated = await inspectionService.updateInspection(req.params.id, req.body);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       message: 'Inspection record updated successfully',
       data: updated
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to update inspection record'
@@ -83,12 +84,12 @@ async function updateInspection(req, res) {
 async function deleteInspection(req, res) {
   try {
     const result = await inspectionService.deleteInspection(req.params.id);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       message: result.message
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to delete inspection record'
@@ -100,12 +101,12 @@ async function deleteInspection(req, res) {
 async function getInspectionSummary(req, res) {
   try {
     const summary = await inspectionService.getInspectionSummary(req.query);
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       data: summary
     });
   } catch (error) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     return res.status(status).json({
       success: false,
       message: error.message || 'Failed to calculate inspection summary'

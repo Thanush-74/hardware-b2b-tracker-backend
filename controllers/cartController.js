@@ -1,5 +1,6 @@
 const cartService = require('../services/cartService');
 const { successResponse } = require('../utils/response');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 /**
  * Get current user's active cart
@@ -9,7 +10,7 @@ const getCart = async (req, res, next) => {
   try {
     const staffId = req.user.id;
     const cart = await cartService.getCart(staffId);
-    return successResponse(res, 'Cart retrieved successfully', cart, 200);
+    return successResponse(res, 'Cart retrieved successfully', cart, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -23,7 +24,7 @@ const addToCart = async (req, res, next) => {
   try {
     const staffId = req.user.id;
     const cart = await cartService.addItemToCart(staffId, req.body);
-    return successResponse(res, 'Item added to cart successfully', cart, 200);
+    return successResponse(res, 'Item added to cart successfully', cart, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -39,7 +40,7 @@ const updateCartItem = async (req, res, next) => {
     const itemId = req.params.id;
     const { quantity } = req.body;
     const cart = await cartService.updateCartItemQuantity(staffId, itemId, quantity);
-    return successResponse(res, 'Cart item updated successfully', cart, 200);
+    return successResponse(res, 'Cart item updated successfully', cart, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -54,7 +55,7 @@ const removeCartItem = async (req, res, next) => {
     const staffId = req.user.id;
     const itemId = req.params.id;
     const cart = await cartService.removeCartItem(staffId, itemId);
-    return successResponse(res, 'Cart item removed successfully', cart, 200);
+    return successResponse(res, 'Cart item removed successfully', cart, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
@@ -68,7 +69,7 @@ const clearCart = async (req, res, next) => {
   try {
     const staffId = req.user.id;
     const cart = await cartService.clearCart(staffId);
-    return successResponse(res, 'Cart cleared successfully', cart, 200);
+    return successResponse(res, 'Cart cleared successfully', cart, HTTP_STATUS.OK);
   } catch (error) {
     return next(error);
   }
