@@ -84,7 +84,23 @@ const getAllProducts = async (query = {}) => {
 
   // Filter by type
   if (type) {
-    where.type = { [Op.iLike]: `%${type}%` };
+    const trimmed = type.trim();
+    const compact = trimmed.replace(/\s+/g, '').toUpperCase();
+    if (compact === 'ROM/SSD') {
+      where[Op.or] = [
+        { type: { [Op.iLike]: '%ROM / SSD%' } },
+        { type: { [Op.iLike]: '%ROM/SSD%' } },
+        { type: { [Op.iLike]: '%SSD%' } },
+        { type: { [Op.iLike]: '%ROM%' } }
+      ];
+    } else if (compact === 'ROM') {
+      where[Op.or] = [
+        { type: { [Op.iLike]: '%ROM%' } },
+        { type: { [Op.iLike]: '%SSD%' } }
+      ];
+    } else {
+      where.type = { [Op.iLike]: `%${trimmed}%` };
+    }
   }
 
   // Filter by active status
@@ -199,6 +215,13 @@ const updateProduct = async (id, data) => {
       if (inv) {
         const newTotalQty = updateFields.available_quantity + (inv.reserved_quantity || 0);
         await inv.update({ quantity: newTotalQty }, { transaction });
+      } else {
+        await Inventory.create({
+          product_id: product.id,
+          quantity: updateFields.available_quantity,
+          reserved_quantity: 0,
+          location: 'Main Warehouse'
+        }, { transaction });
       }
     }
 

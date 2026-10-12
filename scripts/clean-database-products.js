@@ -36,12 +36,12 @@ const cleanDatabase = async () => {
         is_active: true
       },
       {
-        name: 'ROM / SSD',
-        type: 'ROM / SSD',
+        name: 'ROM',
+        type: 'ROM',
         specifications: { capacity: '1TB', form_factor: 'M.2 NVMe', read_speed: '7000MB/s' },
         price: 89.50,
         available_quantity: 80,
-        description: 'High-speed NVMe M.2 Solid State Drive for enterprise and workstation storage.',
+        description: 'High-speed Read-Only Memory / NVMe Solid State Drive for enterprise and workstation storage.',
         is_active: true
       },
       {
@@ -65,7 +65,7 @@ const cleanDatabase = async () => {
       if (type.includes('RAM') || name.includes('RAM') || name.includes('DDR')) return 'RAM';
       if (type.includes('ROM') || type.includes('SSD') || name.includes('SSD') || name.includes('NVME') || type.includes('STORAGE')) {
         if (name.includes('KEYBOARD')) return null;
-        return 'ROM / SSD';
+        return 'ROM';
       }
       if (type.includes('MOTHERBOARD') || name.includes('MOTHERBOARD') || name.includes('MAINBOARD')) return 'Motherboard';
       return null;

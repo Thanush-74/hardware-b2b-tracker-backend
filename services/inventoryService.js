@@ -46,7 +46,7 @@ const formatInventoryItem = (item) => {
  * View all inventory records with optional filtering and pagination
  */
 const getAllInventory = async (query = {}) => {
-  const { page = 1, limit = 50, search, location, product_id } = query;
+  const { page = 1, limit = 50, search, location, product_id, type } = query;
   const where = {};
   const productWhere = {};
 
@@ -59,6 +59,28 @@ const getAllInventory = async (query = {}) => {
       { name: { [Op.iLike]: `%${search}%` } },
       { type: { [Op.iLike]: `%${search}%` } }
     ];
+  }
+
+  if (type) {
+    const trimmed = type.trim();
+    const compact = trimmed.replace(/\s+/g, '').toUpperCase();
+    if (compact === 'ROM/SSD') {
+      productWhere[Op.or] = [
+        ...(productWhere[Op.or] || []),
+        { type: { [Op.iLike]: '%ROM / SSD%' } },
+        { type: { [Op.iLike]: '%ROM/SSD%' } },
+        { type: { [Op.iLike]: '%SSD%' } },
+        { type: { [Op.iLike]: '%ROM%' } }
+      ];
+    } else if (compact === 'ROM') {
+      productWhere[Op.or] = [
+        ...(productWhere[Op.or] || []),
+        { type: { [Op.iLike]: '%ROM%' } },
+        { type: { [Op.iLike]: '%SSD%' } }
+      ];
+    } else {
+      productWhere.type = { [Op.iLike]: `%${trimmed}%` };
+    }
   }
 
   if (location) {

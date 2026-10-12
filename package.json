@@ -25,7 +25,8 @@
     "seed": "node scripts/seed.js up",
     "seed:undo": "node scripts/seed.js down",
     "seed:admin": "node scripts/seed-admin.js",
-    "seed:realistic": "node scripts/seed-realistic-data.js"
+    "seed:realistic": "node scripts/seed-realistic-data.js",
+    "clean:products": "node scripts/clean-database-products.js"
   },
   "repository": {
     "type": "git",
