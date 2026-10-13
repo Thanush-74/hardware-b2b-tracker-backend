@@ -1,6 +1,8 @@
-const { Inventory, Product } = require('../models');
+const { Inventory, Product, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const notificationService = require('./notificationService');
+
+const LOW_STOCK_THRESHOLD = 10;
 
 /**
  * Determine stock status label based on available quantity
@@ -9,7 +11,7 @@ const getStockStatus = (availableQuantity) => {
   if (availableQuantity <= 0) {
     return 'Out of Stock';
   }
-  if (availableQuantity <= 10) {
+  if (availableQuantity <= LOW_STOCK_THRESHOLD) {
     return 'Low Stock';
   }
   return 'In Stock';
@@ -32,6 +34,7 @@ const formatInventoryItem = (item) => {
     product_specifications: item.product ? item.product.specifications : null,
     product_price: item.product ? Number(item.product.price) : 0,
     total_quantity: totalQty,
+    quantity: totalQty,
     reserved_quantity: reservedQty,
     available_quantity: availableQty,
     location: item.location || 'Main Warehouse',
@@ -107,10 +110,29 @@ const getAllInventory = async (query = {}) => {
 
   const formattedRows = rows.map(formatInventoryItem);
 
+  // Count active inventory records with available stock at or below low stock threshold
+  const lowStockCount = await Inventory.count({
+    distinct: true,
+    col: 'id',
+    include: [
+      {
+        model: Product,
+        as: 'product',
+        where: { is_active: true },
+        required: true
+      }
+    ],
+    where: sequelize.where(
+      sequelize.literal('"Inventory"."quantity" - "Inventory"."reserved_quantity"'),
+      { [Op.lte]: LOW_STOCK_THRESHOLD }
+    )
+  });
+
   return {
     total: count,
     page: pageNumber,
     totalPages: Math.ceil(count / pageSize),
+    low_stock_count: lowStockCount,
     inventory: formattedRows
   };
 };
@@ -268,8 +290,8 @@ const decreaseStock = async (id, amount) => {
     await item.product.update({ available_quantity: availableQty });
   }
 
-  // Trigger Low Stock Notification if available stock <= 10
-  if (availableQty <= 10) {
+  // Trigger Low Stock Notification if available stock <= LOW_STOCK_THRESHOLD
+  if (availableQty <= LOW_STOCK_THRESHOLD) {
     try {
       await notificationService.notifyAdmins({
         title: 'Low Stock Alert',

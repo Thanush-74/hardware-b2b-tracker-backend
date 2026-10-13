@@ -397,6 +397,13 @@ async function getInspectionSummary(query = {}) {
   const passRate = totalInspected > 0 ? parseFloat(((totalPassed / totalInspected) * 100).toFixed(2)) : 100.00;
 
   return {
+    // Aliased fields consumed by InspectionsPage.jsx summary cards
+    total: allInspections.length,
+    passed: byResult['Passed'] || 0,
+    failed: byResult['Failed'] || 0,
+    pending: byResult['Pending'] || 0,
+    approved: byResult['Approved'] || 0,
+    // Full detail fields
     totalReports: allInspections.length,
     totalInspected,
     totalPassed,

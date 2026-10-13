@@ -148,11 +148,22 @@ const getAllProduction = async (query = {}) => {
     offset
   });
 
+  // Count actual active production records in DB (status "In Production")
+  const activeCount = await Production.count({
+    where: {
+      status: 'In Production'
+    }
+  });
+
+  const formattedRows = rows.map(formatProductionRecord);
+
   return {
     total: count,
     page: pageNumber,
     totalPages: Math.ceil(count / pageSize),
-    production_records: rows.map(formatProductionRecord)
+    active_count: activeCount,
+    production_records: formattedRows,
+    productions: formattedRows
   };
 };
 
