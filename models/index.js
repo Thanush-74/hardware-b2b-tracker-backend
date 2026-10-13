@@ -231,6 +231,17 @@ ManufacturingAssignment.belongsTo(Product, {
   as: 'product'
 });
 
+Production.hasMany(ManufacturingAssignment, {
+  foreignKey: 'production_id',
+  as: 'manufacturing_assignments',
+  onDelete: 'SET NULL'
+});
+
+ManufacturingAssignment.belongsTo(Production, {
+  foreignKey: 'production_id',
+  as: 'production'
+});
+
 // 17. Expense & Staff
 Staff.hasMany(Expense, {
   foreignKey: 'staff_id',

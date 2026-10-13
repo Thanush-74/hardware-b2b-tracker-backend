@@ -69,6 +69,11 @@ const Inspection = sequelize.define('Inspection', {
   notes: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  inventory_posted: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
   }
 }, {
   tableName: 'inspections',

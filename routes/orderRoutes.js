@@ -21,6 +21,7 @@ router.put('/:id', requirePermission('orders.edit'), orderController.updateOrder
 
 // Update order status (requires orders.edit)
 router.patch('/:id/status', requirePermission('orders.edit'), orderController.updateOrderStatus);
+router.put('/:id/status', requirePermission('orders.edit'), orderController.updateOrderStatus);
 
 // Update payment status (requires orders.edit)
 router.patch('/:id/payment', requirePermission('orders.edit'), orderController.updatePaymentStatus);

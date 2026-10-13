@@ -19,6 +19,15 @@ const ManufacturingAssignment = sequelize.define('ManufacturingAssignment', {
     type: DataTypes.BIGINT,
     allowNull: true
   },
+  production_id: {
+    type: DataTypes.BIGINT,
+    allowNull: true
+  },
+  completed_quantity: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0
+  },
   start_date: {
     type: DataTypes.DATEONLY,
     allowNull: false,

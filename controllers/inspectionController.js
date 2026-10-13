@@ -97,7 +97,25 @@ async function deleteInspection(req, res) {
   }
 }
 
-// 6. Get inspection summary
+// 6. Approve inspection
+async function approveInspection(req, res) {
+  try {
+    const approved = await inspectionService.approveInspection(req.params.id);
+    return res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: 'Inspection approved and accepted units added to inventory successfully',
+      data: approved
+    });
+  } catch (error) {
+    const status = error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    return res.status(status).json({
+      success: false,
+      message: error.message || 'Failed to approve inspection'
+    });
+  }
+}
+
+// 7. Get inspection summary
 async function getInspectionSummary(req, res) {
   try {
     const summary = await inspectionService.getInspectionSummary(req.query);
@@ -118,6 +136,7 @@ module.exports = {
   createInspection,
   getAllInspections,
   getInspectionById,
+  approveInspection,
   updateInspection,
   deleteInspection,
   getInspectionSummary

@@ -1,10 +1,11 @@
 const { Op } = require('sequelize');
-const { Inspection, Staff, Product, Return, Production, Role } = require('../models');
+const { Inspection, Staff, Product, Return, Production, Role, Inventory, sequelize } = require('../models');
 const notificationService = require('./notificationService');
 
 /**
  * Inspection Service
  * Handles QA inspections for production runs, inventory batches, and returned items.
+ * Connects QA results directly and atomically to sellable Inventory.
  */
 
 // 1. Create Inspection
@@ -40,9 +41,34 @@ async function createInspection(inspectionData) {
     throw error;
   }
 
+  let resolvedProductId = product_id || null;
+  let prod = null;
+
+  // Validate Production if provided
+  if (production_id) {
+    prod = await Production.findByPk(production_id);
+    if (!prod) {
+      const error = new Error('Production batch not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!resolvedProductId) {
+      resolvedProductId = prod.product_id;
+    }
+
+    if (prod.quantity_completed <= 0) {
+      const error = new Error(
+        `Cannot inspect production batch #${production_id} because no units have been manufactured yet (completed: 0)`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
   // Validate Product if provided
-  if (product_id) {
-    const product = await Product.findByPk(product_id);
+  if (resolvedProductId) {
+    const product = await Product.findByPk(resolvedProductId);
     if (!product) {
       const error = new Error('Product not found');
       error.statusCode = 404;
@@ -60,42 +86,129 @@ async function createInspection(inspectionData) {
     }
   }
 
-  // Validate Production if provided
-  if (production_id) {
-    const prod = await Production.findByPk(production_id);
-    if (!prod) {
-      const error = new Error('Production batch not found');
-      error.statusCode = 404;
-      throw error;
-    }
-  }
-
-  const qInspected = quantity_inspected !== undefined ? parseInt(quantity_inspected, 10) : 1;
-  const qPassed = passed_quantity !== undefined ? parseInt(passed_quantity, 10) : 0;
-  const qFailed = failed_quantity !== undefined ? parseInt(failed_quantity, 10) : 0;
-
-  if (isNaN(qInspected) || qInspected < 1) {
-    const error = new Error('Quantity inspected must be at least 1');
+  // Validate quantities
+  const qInspected = Number(quantity_inspected);
+  if (!Number.isInteger(qInspected) || qInspected < 1) {
+    const error = new Error('Quantity inspected must be a positive integer (at least 1)');
     error.statusCode = 400;
     throw error;
   }
 
-  const inspection = await Inspection.create({
-    inspector_id,
-    product_id: product_id || null,
-    return_id: return_id || null,
-    production_id: production_id || null,
-    inspection_date: inspection_date || new Date().toISOString().split('T')[0],
-    item_type,
-    batch_number: batch_number || null,
-    quantity_inspected: qInspected,
-    passed_quantity: qPassed,
-    failed_quantity: qFailed,
-    result,
-    defect_type: defect_type || null,
-    severity: severity || 'Low',
-    notes: notes || null
-  });
+  const qPassed = Number(passed_quantity) || 0;
+  if (!Number.isInteger(qPassed) || qPassed < 0) {
+    const error = new Error('Passed quantity must be a non-negative integer');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const qFailed = Number(failed_quantity) || 0;
+  if (!Number.isInteger(qFailed) || qFailed < 0) {
+    const error = new Error('Failed quantity must be a non-negative integer');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (qPassed + qFailed > qInspected) {
+    const error = new Error(
+      `Passed quantity (${qPassed}) plus failed quantity (${qFailed}) cannot exceed inspected quantity (${qInspected})`
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // If inspecting a production batch, ensure cumulative inspected does not exceed completed units
+  if (prod) {
+    const alreadyInspected = (await Inspection.sum('quantity_inspected', {
+      where: { production_id }
+    })) || 0;
+
+    if (alreadyInspected + qInspected > prod.quantity_completed) {
+      const error = new Error(
+        `Requested inspection quantity (${alreadyInspected + qInspected}) exceeds available manufactured units (${prod.quantity_completed}) for batch #${production_id}`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  // If created directly with 'Approved' result and passed units exist, post atomically to inventory
+  let inspection;
+  if (result === 'Approved') {
+    const transaction = await sequelize.transaction();
+    try {
+      inspection = await Inspection.create({
+        inspector_id,
+        product_id: resolvedProductId,
+        return_id: return_id || null,
+        production_id: production_id || null,
+        inspection_date: inspection_date || new Date().toISOString().split('T')[0],
+        item_type,
+        batch_number: batch_number || null,
+        quantity_inspected: qInspected,
+        passed_quantity: qPassed,
+        failed_quantity: qFailed,
+        result: 'Approved',
+        defect_type: defect_type || null,
+        severity: severity || 'Low',
+        notes: notes || null,
+        inventory_posted: true
+      }, { transaction });
+
+      // Add passed units to inventory and product stock
+      if (qPassed > 0 && resolvedProductId) {
+        let inv = await Inventory.findOne({
+          where: { product_id: resolvedProductId },
+          transaction,
+          lock: transaction.LOCK.UPDATE
+        });
+
+        if (inv) {
+          const newQty = inv.quantity + qPassed;
+          await inv.update({ quantity: newQty }, { transaction });
+        } else {
+          inv = await Inventory.create({
+            product_id: resolvedProductId,
+            quantity: qPassed,
+            reserved_quantity: 0,
+            location: 'Main Warehouse'
+          }, { transaction });
+        }
+
+        const prodRecord = await Product.findByPk(resolvedProductId, {
+          transaction,
+          lock: transaction.LOCK.UPDATE
+        });
+        if (prodRecord) {
+          await prodRecord.update({
+            available_quantity: prodRecord.available_quantity + qPassed
+          }, { transaction });
+        }
+      }
+
+      await transaction.commit();
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
+    }
+  } else {
+    inspection = await Inspection.create({
+      inspector_id,
+      product_id: resolvedProductId,
+      return_id: return_id || null,
+      production_id: production_id || null,
+      inspection_date: inspection_date || new Date().toISOString().split('T')[0],
+      item_type,
+      batch_number: batch_number || null,
+      quantity_inspected: qInspected,
+      passed_quantity: qPassed,
+      failed_quantity: qFailed,
+      result,
+      defect_type: defect_type || null,
+      severity: severity || 'Low',
+      notes: notes || null,
+      inventory_posted: false
+    });
+  }
 
   try {
     if (inspector_id) {
@@ -144,37 +257,14 @@ async function getAllInspections(query = {}) {
 
   const whereClause = {};
 
-  if (result) {
-    whereClause.result = { [Op.iLike]: result };
-  }
-
-  if (defect_type) {
-    whereClause.defect_type = { [Op.iLike]: `%${defect_type}%` };
-  }
-
-  if (severity) {
-    whereClause.severity = { [Op.iLike]: severity };
-  }
-
-  if (item_type) {
-    whereClause.item_type = { [Op.iLike]: item_type };
-  }
-
-  if (inspector_id) {
-    whereClause.inspector_id = inspector_id;
-  }
-
-  if (product_id) {
-    whereClause.product_id = product_id;
-  }
-
-  if (return_id) {
-    whereClause.return_id = return_id;
-  }
-
-  if (production_id) {
-    whereClause.production_id = production_id;
-  }
+  if (result) whereClause.result = result;
+  if (defect_type) whereClause.defect_type = defect_type;
+  if (severity) whereClause.severity = severity;
+  if (item_type) whereClause.item_type = item_type;
+  if (inspector_id) whereClause.inspector_id = inspector_id;
+  if (product_id) whereClause.product_id = product_id;
+  if (return_id) whereClause.return_id = return_id;
+  if (production_id) whereClause.production_id = production_id;
 
   if (start_date && end_date) {
     whereClause.inspection_date = { [Op.between]: [start_date, end_date] };
@@ -223,7 +313,7 @@ async function getAllInspections(query = {}) {
         attributes: ['id', 'quantity_planned', 'quantity_producing', 'quantity_completed', 'status']
       }
     ],
-    order: [['inspection_date', 'DESC'], ['created_at', 'DESC']],
+    order: [['created_at', 'DESC']],
     limit: limitNum,
     offset
   });
@@ -280,7 +370,103 @@ async function getInspectionById(id) {
   return inspection;
 }
 
-// 4. Update inspection
+// 4. Approve inspection and post accepted units to inventory atomically
+async function approveInspection(id) {
+  const transaction = await sequelize.transaction();
+  try {
+    const inspection = await Inspection.findByPk(id, {
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
+
+    if (!inspection) {
+      const error = new Error('Inspection report not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Idempotent guard: If already posted to inventory, do not add stock again!
+    if (inspection.inventory_posted) {
+      await transaction.commit();
+      return getInspectionById(id);
+    }
+
+    if (inspection.result === 'Failed') {
+      const error = new Error('Cannot approve an inspection that has been marked as Failed');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const acceptedQty = Number(inspection.passed_quantity) || 0;
+
+    // Add accepted units to sellable inventory exactly once
+    if (acceptedQty > 0 && inspection.product_id) {
+      let inv = await Inventory.findOne({
+        where: { product_id: inspection.product_id },
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
+
+      if (inv) {
+        const newQty = inv.quantity + acceptedQty;
+        await inv.update({ quantity: newQty }, { transaction });
+      } else {
+        inv = await Inventory.create({
+          product_id: inspection.product_id,
+          quantity: acceptedQty,
+          reserved_quantity: 0,
+          location: 'Main Warehouse'
+        }, { transaction });
+      }
+
+      const prod = await Product.findByPk(inspection.product_id, {
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
+      if (prod) {
+        await prod.update({
+          available_quantity: prod.available_quantity + acceptedQty
+        }, { transaction });
+      }
+    }
+
+    // Mark as approved and posted
+    await inspection.update({
+      result: 'Approved',
+      inventory_posted: true
+    }, { transaction });
+
+    // If linked to production batch, update status if appropriate
+    if (inspection.production_id) {
+      const prodRecord = await Production.findByPk(inspection.production_id, {
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
+      if (prodRecord && prodRecord.quantity_completed >= prodRecord.quantity_planned) {
+        await prodRecord.update({ status: 'Completed' }, { transaction });
+      }
+    }
+
+    await transaction.commit();
+
+    try {
+      await notificationService.notifyAdmins({
+        title: 'Inspection Approved',
+        message: `Quality inspection #${inspection.id} approved. ${acceptedQty} units added to sellable stock.`,
+        type: 'inspection_result'
+      });
+    } catch (notifyErr) {
+      console.error('Inspection approval notification warning:', notifyErr.message);
+    }
+
+    return getInspectionById(id);
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+}
+
+// 5. Update inspection
 async function updateInspection(id, updateData) {
   const inspection = await Inspection.findByPk(id);
 
@@ -307,6 +493,26 @@ async function updateInspection(id, updateData) {
     notes
   } = updateData;
 
+  // If changing status to 'Approved' and not yet posted to inventory, trigger atomic approval!
+  if (result === 'Approved' && !inspection.inventory_posted) {
+    if (inspector_id) inspection.inspector_id = inspector_id;
+    if (product_id !== undefined) inspection.product_id = product_id || null;
+    if (return_id !== undefined) inspection.return_id = return_id || null;
+    if (production_id !== undefined) inspection.production_id = production_id || null;
+    if (inspection_date !== undefined) inspection.inspection_date = inspection_date;
+    if (item_type !== undefined) inspection.item_type = item_type;
+    if (batch_number !== undefined) inspection.batch_number = batch_number;
+    if (quantity_inspected !== undefined) inspection.quantity_inspected = parseInt(quantity_inspected, 10);
+    if (passed_quantity !== undefined) inspection.passed_quantity = parseInt(passed_quantity, 10);
+    if (failed_quantity !== undefined) inspection.failed_quantity = parseInt(failed_quantity, 10);
+    if (defect_type !== undefined) inspection.defect_type = defect_type;
+    if (severity !== undefined) inspection.severity = severity;
+    if (notes !== undefined) inspection.notes = notes;
+    await inspection.save();
+
+    return await approveInspection(id);
+  }
+
   if (inspector_id) {
     const inspector = await Staff.findByPk(inspector_id);
     if (!inspector) {
@@ -317,15 +523,65 @@ async function updateInspection(id, updateData) {
     inspection.inspector_id = inspector_id;
   }
 
+  const targetProdId = production_id !== undefined ? production_id : inspection.production_id;
+  if (targetProdId) {
+    const prod = await Production.findByPk(targetProdId);
+    if (!prod) {
+      const error = new Error('Production batch not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    if (production_id !== undefined) inspection.production_id = production_id || null;
+    if (!inspection.product_id && prod.product_id) {
+      inspection.product_id = prod.product_id;
+    }
+  }
+
   if (product_id !== undefined) inspection.product_id = product_id || null;
   if (return_id !== undefined) inspection.return_id = return_id || null;
-  if (production_id !== undefined) inspection.production_id = production_id || null;
   if (inspection_date !== undefined) inspection.inspection_date = inspection_date;
   if (item_type !== undefined) inspection.item_type = item_type;
   if (batch_number !== undefined) inspection.batch_number = batch_number;
-  if (quantity_inspected !== undefined) inspection.quantity_inspected = parseInt(quantity_inspected, 10);
-  if (passed_quantity !== undefined) inspection.passed_quantity = parseInt(passed_quantity, 10);
-  if (failed_quantity !== undefined) inspection.failed_quantity = parseInt(failed_quantity, 10);
+
+  const currentInspected = quantity_inspected !== undefined ? Number(quantity_inspected) : inspection.quantity_inspected;
+  const currentPassed = passed_quantity !== undefined ? Number(passed_quantity) : inspection.passed_quantity;
+  const currentFailed = failed_quantity !== undefined ? Number(failed_quantity) : inspection.failed_quantity;
+
+  if (quantity_inspected !== undefined) {
+    if (!Number.isInteger(currentInspected) || currentInspected < 1) {
+      const error = new Error('Quantity inspected must be a positive integer');
+      error.statusCode = 400;
+      throw error;
+    }
+    inspection.quantity_inspected = currentInspected;
+  }
+
+  if (passed_quantity !== undefined) {
+    if (!Number.isInteger(currentPassed) || currentPassed < 0) {
+      const error = new Error('Passed quantity must be a non-negative integer');
+      error.statusCode = 400;
+      throw error;
+    }
+    inspection.passed_quantity = currentPassed;
+  }
+
+  if (failed_quantity !== undefined) {
+    if (!Number.isInteger(currentFailed) || currentFailed < 0) {
+      const error = new Error('Failed quantity must be a non-negative integer');
+      error.statusCode = 400;
+      throw error;
+    }
+    inspection.failed_quantity = currentFailed;
+  }
+
+  if (currentPassed + currentFailed > currentInspected) {
+    const error = new Error(
+      `Passed quantity (${currentPassed}) plus failed quantity (${currentFailed}) cannot exceed inspected quantity (${currentInspected})`
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
   if (result !== undefined) inspection.result = result;
   if (defect_type !== undefined) inspection.defect_type = defect_type;
   if (severity !== undefined) inspection.severity = severity;
@@ -336,7 +592,7 @@ async function updateInspection(id, updateData) {
   return getInspectionById(id);
 }
 
-// 5. Delete inspection
+// 6. Delete inspection
 async function deleteInspection(id) {
   const inspection = await Inspection.findByPk(id);
 
@@ -350,7 +606,7 @@ async function deleteInspection(id) {
   return { message: 'Inspection report deleted successfully' };
 }
 
-// 6. Get Quality & Inspection Summary
+// 7. Get Quality & Inspection Summary
 async function getInspectionSummary(query = {}) {
   const { start_date, end_date } = query;
   const whereClause = {};
@@ -365,7 +621,7 @@ async function getInspectionSummary(query = {}) {
 
   const allInspections = await Inspection.findAll({
     where: whereClause,
-    attributes: ['quantity_inspected', 'passed_quantity', 'failed_quantity', 'result', 'defect_type', 'severity']
+    attributes: ['quantity_inspected', 'passed_quantity', 'failed_quantity', 'result', 'defect_type', 'severity', 'inventory_posted']
   });
 
   let totalInspected = 0;
@@ -419,6 +675,7 @@ module.exports = {
   createInspection,
   getAllInspections,
   getInspectionById,
+  approveInspection,
   updateInspection,
   deleteInspection,
   getInspectionSummary

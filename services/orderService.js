@@ -117,10 +117,7 @@ const createOrder = async (staffId, {
     orderItemsToProcess = items;
   }
 
-  // 4. Validate products and stock availability
-  let grandTotal = 0;
-  const verifiedItems = [];
-
+  // 4. Validate items format
   for (const it of orderItemsToProcess) {
     if (!it.product_id) {
       const error = new Error('Each order item must specify product_id');
@@ -128,49 +125,72 @@ const createOrder = async (staffId, {
       throw error;
     }
 
-    const qty = parseInt(it.quantity, 10);
-    if (isNaN(qty) || qty <= 0) {
-      const error = new Error(`Quantity for product ID ${it.product_id} must be greater than 0`);
+    const qty = Number(it.quantity);
+    if (!Number.isInteger(qty) || qty <= 0) {
+      const error = new Error(`Quantity for product ID ${it.product_id} must be a positive integer`);
       error.statusCode = 400;
       throw error;
     }
-
-    const product = await Product.findByPk(it.product_id);
-    if (!product || !product.is_active) {
-      const error = new Error(`Product with ID ${it.product_id} is not found or inactive`);
-      error.statusCode = 404;
-      throw error;
-    }
-
-    if (qty > product.available_quantity) {
-      const error = new Error(
-        `Insufficient stock for product "${product.name}". Available: ${product.available_quantity}, Requested: ${qty}`
-      );
-      error.statusCode = 400;
-      throw error;
-    }
-
-    const unitPrice = Number(product.price);
-    const lineTotal = Number((qty * unitPrice).toFixed(2));
-    grandTotal += lineTotal;
-
-    verifiedItems.push({
-      product,
-      product_id: product.id,
-      quantity: qty,
-      unit_price: unitPrice,
-      total_price: lineTotal
-    });
   }
 
-  grandTotal = Number(grandTotal.toFixed(2));
-  const numericPaymentAmount = payment_status === 'Paid' && (!payment_amount || Number(payment_amount) === 0)
-    ? grandTotal
-    : Number(payment_amount) || 0;
-
-  // 5. Create Order, OrderItems, update stocks and clear cart atomically inside a transaction
+  // 5. Create Order, OrderItems, update stocks and clear cart atomically inside a transaction with row locking
   const transaction = await sequelize.transaction();
   try {
+    let grandTotal = 0;
+    const verifiedItems = [];
+
+    // Lock and validate each product and inventory record inside the transaction
+    for (const it of orderItemsToProcess) {
+      const qty = Number(it.quantity);
+
+      const product = await Product.findByPk(it.product_id, {
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
+
+      if (!product || !product.is_active) {
+        const error = new Error(`Product with ID ${it.product_id} is not found or inactive`);
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const inv = await Inventory.findOne({
+        where: { product_id: product.id },
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
+
+      const currentAvailable = inv
+        ? Math.max(0, inv.quantity - (inv.reserved_quantity || 0))
+        : product.available_quantity;
+
+      if (qty > currentAvailable) {
+        const error = new Error(
+          `Insufficient stock for product "${product.name}". Available: ${currentAvailable}, Requested: ${qty}`
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const unitPrice = Number(product.price);
+      const lineTotal = Number((qty * unitPrice).toFixed(2));
+      grandTotal += lineTotal;
+
+      verifiedItems.push({
+        product,
+        inv,
+        product_id: product.id,
+        quantity: qty,
+        unit_price: unitPrice,
+        total_price: lineTotal
+      });
+    }
+
+    grandTotal = Number(grandTotal.toFixed(2));
+    const numericPaymentAmount = payment_status === 'Paid' && (!payment_amount || Number(payment_amount) === 0)
+      ? grandTotal
+      : Number(payment_amount) || 0;
+
     const orderNumber = generateOrderNumber();
 
     const order = await Order.create({
@@ -198,14 +218,14 @@ const createOrder = async (staffId, {
         total_price: itemData.total_price
       }, { transaction });
 
-      // Deduct stock
-      const newStock = Math.max(0, itemData.product.available_quantity - itemData.quantity);
-      await itemData.product.update({ available_quantity: newStock }, { transaction });
-
-      const inv = await Inventory.findOne({ where: { product_id: itemData.product_id }, transaction });
-      if (inv) {
-        const newInvQty = Math.max(0, inv.quantity - itemData.quantity);
-        await inv.update({ quantity: newInvQty }, { transaction });
+      // Deduct physical inventory stock
+      if (itemData.inv) {
+        const newInvQty = Math.max(0, itemData.inv.quantity - itemData.quantity);
+        await itemData.inv.update({ quantity: newInvQty }, { transaction });
+        await itemData.product.update({ available_quantity: newInvQty }, { transaction });
+      } else {
+        const newProdQty = Math.max(0, itemData.product.available_quantity - itemData.quantity);
+        await itemData.product.update({ available_quantity: newProdQty }, { transaction });
       }
     }
 
@@ -403,22 +423,53 @@ const updateOrderStatus = async (id, order_status) => {
 
   const transaction = await sequelize.transaction();
   try {
+    const freshOrder = await Order.findByPk(id, {
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
+
+    if (!freshOrder) {
+      const error = new Error('Order not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (freshOrder.order_status === order_status) {
+      await transaction.commit();
+      return await getOrderById(id);
+    }
+
+    if (freshOrder.order_status === 'Cancelled') {
+      const error = new Error('Cannot change the status of an order that has already been cancelled');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (freshOrder.order_status === 'Delivered' && order_status === 'Cancelled') {
+      const error = new Error('Delivered orders cannot be cancelled directly. Please initiate a return request.');
+      error.statusCode = 400;
+      throw error;
+    }
+
     // If newly cancelling an order, restore stock atomically exactly once
-    if (order_status === 'Cancelled' && previousStatus !== 'Cancelled') {
-      const items = order.items || [];
+    if (order_status === 'Cancelled') {
+      const items = await OrderItem.findAll({ where: { order_id: freshOrder.id }, transaction });
       for (const item of items) {
-        const prod = await Product.findByPk(item.product_id, { transaction });
-        if (prod) {
-          await prod.update({ available_quantity: prod.available_quantity + item.quantity }, { transaction });
-        }
-        const inv = await Inventory.findOne({ where: { product_id: item.product_id }, transaction });
+        const prod = await Product.findByPk(item.product_id, { transaction, lock: transaction.LOCK.UPDATE });
+        const inv = await Inventory.findOne({ where: { product_id: item.product_id }, transaction, lock: transaction.LOCK.UPDATE });
         if (inv) {
-          await inv.update({ quantity: inv.quantity + item.quantity }, { transaction });
+          const newInvQty = inv.quantity + item.quantity;
+          await inv.update({ quantity: newInvQty }, { transaction });
+          if (prod) {
+            await prod.update({ available_quantity: newInvQty }, { transaction });
+          }
+        } else if (prod) {
+          await prod.update({ available_quantity: prod.available_quantity + item.quantity }, { transaction });
         }
       }
     }
 
-    await order.update({ order_status }, { transaction });
+    await freshOrder.update({ order_status }, { transaction });
     await transaction.commit();
 
     try {

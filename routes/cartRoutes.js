@@ -12,6 +12,7 @@ router.get('/', requirePermission('cart.view'), cartController.getCart);
 
 // Add item to cart (requires cart.edit permission)
 router.post('/', requirePermission('cart.edit'), cartController.addToCart);
+router.post('/items', requirePermission('cart.edit'), cartController.addToCart);
 
 // Clear entire cart (requires cart.edit permission)
 router.delete('/', requirePermission('cart.edit'), cartController.clearCart);

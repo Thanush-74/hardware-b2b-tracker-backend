@@ -1,4 +1,4 @@
-const { Cart, CartItem, Product } = require('../models');
+const { Cart, CartItem, Product, Inventory } = require('../models');
 
 /**
  * Helper function to find or create an active cart for a staff member
@@ -96,9 +96,9 @@ const addItemToCart = async (staffId, { product_id, quantity = 1 }) => {
     throw error;
   }
 
-  const numericQty = parseInt(quantity, 10);
-  if (isNaN(numericQty) || numericQty <= 0) {
-    const error = new Error('Quantity must be greater than 0');
+  const numericQty = Number(quantity);
+  if (!Number.isInteger(numericQty) || numericQty <= 0) {
+    const error = new Error('Quantity must be a positive integer');
     error.statusCode = 400;
     throw error;
   }
@@ -110,6 +110,10 @@ const addItemToCart = async (staffId, { product_id, quantity = 1 }) => {
     error.statusCode = 404;
     throw error;
   }
+
+  // Check inventory stock
+  const inv = await Inventory.findOne({ where: { product_id: product.id } });
+  const availableStock = inv ? Math.max(0, inv.quantity - (inv.reserved_quantity || 0)) : product.available_quantity;
 
   // 3. Get or create active cart
   const cart = await getOrCreateActiveCart(staffId);
@@ -125,9 +129,9 @@ const addItemToCart = async (staffId, { product_id, quantity = 1 }) => {
   if (existingItem) {
     const newQty = existingItem.quantity + numericQty;
 
-    if (newQty > product.available_quantity) {
+    if (newQty > availableStock) {
       const error = new Error(
-        `Cannot add quantity. Requested total (${newQty}) exceeds available stock (${product.available_quantity})`
+        `Cannot add quantity. Requested total (${newQty}) exceeds available stock (${availableStock})`
       );
       error.statusCode = 400;
       throw error;
@@ -138,9 +142,9 @@ const addItemToCart = async (staffId, { product_id, quantity = 1 }) => {
       unit_price: product.price
     });
   } else {
-    if (numericQty > product.available_quantity) {
+    if (numericQty > availableStock) {
       const error = new Error(
-        `Requested quantity (${numericQty}) exceeds available stock (${product.available_quantity})`
+        `Requested quantity (${numericQty}) exceeds available stock (${availableStock})`
       );
       error.statusCode = 400;
       throw error;
@@ -161,9 +165,9 @@ const addItemToCart = async (staffId, { product_id, quantity = 1 }) => {
  * Update the quantity of a specific cart item
  */
 const updateCartItemQuantity = async (staffId, itemId, quantity) => {
-  const numericQty = parseInt(quantity, 10);
-  if (isNaN(numericQty) || numericQty <= 0) {
-    const error = new Error('Quantity must be greater than 0');
+  const numericQty = Number(quantity);
+  if (!Number.isInteger(numericQty) || numericQty <= 0) {
+    const error = new Error('Quantity must be a positive integer');
     error.statusCode = 400;
     throw error;
   }
@@ -184,7 +188,11 @@ const updateCartItemQuantity = async (staffId, itemId, quantity) => {
     throw error;
   }
 
-  const availableStock = cartItem.product ? cartItem.product.available_quantity : 0;
+  const inv = await Inventory.findOne({ where: { product_id: cartItem.product_id } });
+  const availableStock = inv
+    ? Math.max(0, inv.quantity - (inv.reserved_quantity || 0))
+    : (cartItem.product ? cartItem.product.available_quantity : 0);
+
   if (numericQty > availableStock) {
     const error = new Error(
       `Requested quantity (${numericQty}) exceeds available stock (${availableStock})`

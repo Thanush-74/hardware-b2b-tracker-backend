@@ -17,6 +17,7 @@
     "test:manufacturing": "node scripts/test-manufacturing-api.js",
     "test:expenses": "node scripts/test-expenses-api.js",
     "test:inspections": "node scripts/test-inspections-api.js",
+    "test:e2e": "node scripts/test-modules-e2e.js",
     "test:all": "node scripts/test-all-phases.js",
     "start": "node server.js",
     "dev": "nodemon server.js",

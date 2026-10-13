@@ -22,6 +22,9 @@ router.post('/', requirePermission('inspection.create'), inspectionController.cr
 // Update inspection
 router.put('/:id', requirePermission('inspection.edit'), inspectionController.updateInspection);
 
+// Approve inspection and post passed units to inventory
+router.put('/:id/approve', requirePermission('inspection.edit'), inspectionController.approveInspection);
+
 // Delete inspection
 router.delete('/:id', requirePermission('inspection.delete'), inspectionController.deleteInspection);
 
