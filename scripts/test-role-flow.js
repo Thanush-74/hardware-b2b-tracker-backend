@@ -37,7 +37,7 @@ const runRoleFlowTests = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: 'admin@company.com',
-        password: 'password'
+        password: process.env.INITIAL_ADMIN_PASSWORD || 'your_admin_password'
       })
     });
     const adminLoginData = await adminLoginRes.json();
